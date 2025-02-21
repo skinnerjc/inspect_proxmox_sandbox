@@ -1,0 +1,465 @@
+import base64
+import errno
+import re
+import shlex
+import time
+from logging import getLogger
+from pathlib import Path
+from random import randint
+from typing import Dict, Generator, List, Tuple, Union
+
+import tenacity
+from inspect_ai.util import (
+    ExecResult,
+    OutputLimitExceededError,
+    SandboxConnection,
+    SandboxEnvironment,
+    SandboxEnvironmentConfigType,
+    SandboxEnvironmentLimits,
+    concurrency,
+    sandboxenv,
+    trace_action,
+)
+
+from vmsandbox.inspect.proxmox.agent_commands import AgentCommands
+from vmsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from vmsandbox.inspect.proxmox.infra_commands import InfraCommands
+from vmsandbox.inspect.schema import SdnConfig, VmSandboxEnvironmentConfig
+
+
+@sandboxenv(name="vm")
+class VmSandboxEnvironment(SandboxEnvironment):
+    logger = getLogger(__name__)
+
+    TRACE_NAME = "vm_sandbox_environment"
+
+    infra_commands: InfraCommands
+    agent_commands: AgentCommands
+    sdn_config: SdnConfig | None
+    vm_id: int
+    all_vm_ids: Tuple[int, ...]
+    sdn_zone_id: str | None
+
+    def __init__(
+        self,
+        proxmox: AsyncProxmoxAPI,
+        sdn_config: SdnConfig | None,
+        vm_id: int,
+        all_vm_ids: Tuple[int, ...],
+        sdn_zone_id: str | None,
+    ):
+        self.infra_commands = InfraCommands(async_proxmox=proxmox)
+        self.agent_commands = AgentCommands(async_proxmox=proxmox)
+        self.sdn_config = sdn_config
+        self.vm_id = vm_id
+        self.all_vm_ids = all_vm_ids
+        self.sdn_zone_id = sdn_zone_id
+
+    # stolen from k8s sandbox
+    def _pipe_user_input(self, stdin: str | bytes) -> str:
+        # Encode the user-provided input as base64 for 2 reasons:
+        # 1. To avoid issues with special characters (e.g. new lines) in the input.
+        # 2. To support binary input (e.g. null byte).
+        stdin_b64 = base64.b64encode(
+            stdin if isinstance(stdin, bytes) else stdin.encode("utf-8")
+        ).decode("ascii")
+        # The below comment may or may not be relevant to this sandbox provider.
+        # Pipe user input. Simply writing it to the shell's stdin after a command e.g.
+        # `cat` results in `cat` blocking indefinitely as there is no way to close the
+        # stdin stream in v4.channel.k8s.io.
+        return f"echo '{stdin_b64}' | base64 -d | "
+
+    # stolen from k8s sandbox
+    def _prefix_timeout(self, timeout: int | None) -> str:
+        if timeout is None:
+            return ""
+        # Enforce timeout using `timeout`. Cannot enforce this on the client side (requires terminating the remote process).
+        # `-k 5s` sends SIGKILL after grace period in case user command doesn't respect
+        # SIGTERM.
+        return f"timeout -k 5s {timeout}s "
+
+    # stolen from k8s sandbox
+    def _build_shell_script(
+        self,
+        tmp_start: str,
+        command: List[str],
+        stdin: str | bytes | None,
+        cwd: str | None,
+        env: dict[str, str],
+        timeout: int | None,
+    ) -> str:
+        def generate() -> Generator[str, None, None]:
+            yield f"rm -f {tmp_start}script.stdout {tmp_start}script.stderr {tmp_start}script.returncode\n"
+            if cwd is not None:
+                yield f"cd {shlex.quote(cwd)} || exit $?\n"
+            for key, value in env.items():
+                yield f"export {shlex.quote(key)}={shlex.quote(value)}\n"
+            if stdin is not None:
+                yield self._pipe_user_input(stdin)
+            yield f'{self._prefix_timeout(timeout)}{shlex.join(command)} > {tmp_start}script.stdout 2>{tmp_start}script.stderr\necho -n "$?" > {tmp_start}script.returncode\n'
+            yield "sync\n"
+
+        return "".join(generate())
+
+    @classmethod
+    def config_files(cls) -> List[str]:
+        return []
+
+    @classmethod
+    def default_concurrency(cls) -> int | None:
+        return None
+
+    @classmethod
+    async def task_init(
+        cls, task_name: str, config: SandboxEnvironmentConfigType | None
+    ) -> None:
+        return None
+
+    @classmethod
+    async def sample_init(
+        cls,
+        task_name: str,
+        config: SandboxEnvironmentConfigType | None,
+        metadata: dict[str, str],
+    ) -> dict[str, SandboxEnvironment]:
+        if not isinstance(config, VmSandboxEnvironmentConfig):
+            raise ValueError("config must be a VmSandboxEnvironmentConfig")
+
+        proxmox = AsyncProxmoxAPI(
+            host=f"{config.host}:{config.port}",
+            user=f"{config.user}@{config.user_realm}",
+            password=config.password,
+            verify_ssl=False,
+        )
+
+        infra_commands = InfraCommands(async_proxmox=proxmox)
+
+        # 8 characters max unfortunately; we save two at the end to distinguish vnet/SDN objects
+        task_name_start = re.sub("[^a-zA-Z0-9]", "x", task_name[:3].lower())
+        proxmox_ids_start = f"{task_name_start}{randint(0, 999):03d}"
+        # TODO: could check here for collisions
+        async with concurrency("proxmox", 1):
+            vm_configs_with_ids, sdn_zone_id = await infra_commands.create_sdn_and_vms(
+                proxmox_ids_start,
+                sdn_config=config.sdn_config,
+                vms_config=config.vms_config,
+            )
+
+        sandboxes: Dict[str, SandboxEnvironment] = {}
+
+        vm_ids = tuple(
+            vm_configs_with_id[0] for vm_configs_with_id in vm_configs_with_ids
+        )
+
+        found_default = False
+
+        for idx, vm_config_and_id in enumerate(vm_configs_with_ids):
+            vm_sandbox_environment = VmSandboxEnvironment(
+                proxmox=proxmox,
+                sdn_config=config.sdn_config,
+                vm_id=vm_config_and_id[0],
+                all_vm_ids=vm_ids,
+                sdn_zone_id=sdn_zone_id,
+            )
+            if not found_default and vm_config_and_id[1].is_sandbox:
+                sandboxes["default"] = vm_sandbox_environment
+                found_default = True
+            else:
+                sandboxes[f"vm_{vm_config_and_id[0]}"] = vm_sandbox_environment
+
+        if not found_default:
+            raise ValueError(
+                "No default sandbox found: at least one VM must have is_sandbox = True"
+            )
+
+        # borrowed from k8s provider
+        def reorder_default_first(
+            sandboxes: dict[str, SandboxEnvironment],
+        ) -> dict[str, SandboxEnvironment]:
+            # Inspect expects the default sandbox to be the first sandbox in the dict.
+            if "default" in sandboxes:
+                default = sandboxes.pop("default")
+                return {"default": default, **sandboxes}
+            return sandboxes
+
+        return reorder_default_first(sandboxes)
+
+    @classmethod
+    async def sample_cleanup(
+        cls,
+        task_name: str,
+        config: SandboxEnvironmentConfigType | None,
+        environments: dict[str, SandboxEnvironment],
+        interrupted: bool,
+    ) -> None:
+        any_vm_sandbox_environment: VmSandboxEnvironment | None = None
+        for env in environments.values():
+            if isinstance(env, VmSandboxEnvironment):
+                # we only need a single VM sandbox to have enough information to tear them all down
+                any_vm_sandbox_environment = env
+
+        if any_vm_sandbox_environment is not None and any_vm_sandbox_environment.sdn_config is not None:
+            if any_vm_sandbox_environment.sdn_zone_id is None:
+                raise ValueError("SDN zone ID is not set even though sdn_config was!")
+            async with concurrency("proxmox", 1):
+                for vm_id in any_vm_sandbox_environment.all_vm_ids:
+                    await any_vm_sandbox_environment.infra_commands.destroy_vm(
+                        node="proxmox", vm_id=vm_id
+                    )
+                await any_vm_sandbox_environment.infra_commands.tear_down_sdn_zone_and_vnet(
+                    sdn_zone_id=any_vm_sandbox_environment.sdn_zone_id
+                )
+        return None
+
+    @classmethod
+    async def task_cleanup(
+        cls,
+        task_name: str,
+        config: SandboxEnvironmentConfigType | None,
+        cleanup: bool,
+    ) -> None:
+        return None
+
+    @classmethod
+    async def cli_cleanup(cls, id: str | None) -> None:
+        return None
+
+    async def exec(
+        self,
+        cmd: List[str],
+        input: str | bytes | None = None,
+        cwd: str | None = None,
+        env: dict[str, str] = {},
+        user: str | None = None,
+        timeout: int | None = None,
+        timeout_retry: bool = True,
+    ) -> ExecResult[str]:
+        if self.vm_id is None:
+            raise ValueError("VM ID is not set")
+
+        if user is not None:
+            raise NotImplementedError("The user parameter for exec() is not supported.")
+
+        tmp_start = f"/tmp/{__name__}{time.time_ns()}_"
+
+        @tenacity.retry(
+            wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
+            stop=tenacity.stop_after_delay(timeout if timeout is not None else 30),
+            retry=tenacity.retry_if_result(lambda x: x is False),
+        )
+        async def wait_for_exec(vm_id: int, exec_response_pid: int) -> bool:
+            return (
+                await self.agent_commands.get_agent_exec_status(
+                    node="proxmox", vm_id=vm_id, pid=exec_response_pid
+                )
+            )["exited"] == 1
+
+        script = self._build_shell_script(
+            tmp_start=tmp_start,
+            command=cmd,
+            stdin=input,
+            cwd=cwd,
+            env=env,
+            timeout=timeout,
+        )
+
+        await self._write_file_only(f"{tmp_start}script.sh", script)
+
+        exec_post_response = await self.agent_commands.exec_command(
+            node="proxmox", vm_id=self.vm_id, command=["sh", f"{tmp_start}script.sh"]
+        )
+
+        exec_response_pid = exec_post_response["pid"]
+
+        assert isinstance(exec_response_pid, int)
+
+        with trace_action(
+            self.logger,
+            self.TRACE_NAME,
+            f"exec_command {self.vm_id=} {exec_response_pid=}",
+        ):
+            await wait_for_exec(self.vm_id, exec_response_pid)
+
+        # TODO: consider reading all files at once?
+        stdout = (
+            await self.agent_commands.read_file_or_blank(
+                node="proxmox",
+                vm_id=self.vm_id,
+                filepath=f"{tmp_start}script.stdout",
+                max_size=SandboxEnvironmentLimits.MAX_EXEC_OUTPUT_SIZE,
+            )
+        )["content"]
+        stderr = (
+            await self.agent_commands.read_file_or_blank(
+                node="proxmox",
+                vm_id=self.vm_id,
+                filepath=f"{tmp_start}script.stderr",
+                max_size=SandboxEnvironmentLimits.MAX_EXEC_OUTPUT_SIZE,
+            )
+        )["content"]
+        returncode = await self.read_return_code(tmp_start)
+        exec_response = ExecResult(
+            success=returncode == 0,
+            returncode=returncode,
+            stdout=stdout,
+            stderr=stderr,
+        )
+
+        # cleanup - we don't need to wait for the result of this
+        await self.agent_commands.exec_command(
+            node="proxmox",
+            vm_id=self.vm_id,
+            command=["sh", "-c", f"rm -f {tmp_start}*"],
+        )
+
+        if exec_response.returncode == 124:
+            raise TimeoutError("Command timed out")
+
+        if len(exec_response.stderr.splitlines()) == 1:
+            # if err-data is longer than one line, then part of the script ran, and it didn't fail on the first
+            # line, which is characteristic of failing to execute a non-executable file
+            if (
+                exec_response.returncode == 126
+                and "permission denied" in exec_response.stderr.casefold()
+            ):
+                raise PermissionError("Permission denied executing command")
+
+        return exec_response
+
+    @tenacity.retry(
+        wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
+        stop=tenacity.stop_after_delay(2),
+        retry_error_callback=lambda retry_state: 124,
+    )
+    async def read_return_code(self, tmp_start):
+        returncode_string = (
+            await self.agent_commands.read_file_or_blank(
+                node="proxmox",
+                vm_id=self.vm_id,
+                filepath=f"{tmp_start}script.returncode",
+                max_size=SandboxEnvironmentLimits.MAX_EXEC_OUTPUT_SIZE,
+            )
+        )["content"]
+        returncode_string_stripped = returncode_string.strip()
+        if len(returncode_string_stripped) == 0:
+            raise ValueError("Return code file is empty")
+        return int(returncode_string_stripped)
+
+    async def _write_file_only(self, file: str, contents: str | bytes) -> None:
+        if self.vm_id is None:
+            raise ValueError("VM ID is not set")
+        try:
+            await self.agent_commands.write_file(
+                node="proxmox",
+                vm_id=self.vm_id,
+                content=contents
+                if isinstance(contents, bytes)
+                else contents.encode("UTF-8"),
+                filepath=file,
+            )
+        except Exception as ex:
+            if "Agent error" in str(ex):
+                if "No such file or directory" in str(ex):
+                    raise FileNotFoundError(
+                        errno.ENOENT, "No such file or directory.", file
+                    )
+                elif "Is a directory" in str(ex):
+                    raise IsADirectoryError(errno.EISDIR, "Is a directory", file)
+                else:
+                    raise ex
+            else:
+                raise ex
+
+    async def write_file(self, file: str, contents: str | bytes) -> None:
+        """
+        Writes contents to file, handling large files by splitting them into chunks
+        and recombining using cat.
+
+        """
+        CHUNK_SIZE = (
+            40 * 1024
+        )  # 40KB chunks to be safe, to take base64 encoding into account
+
+        await self.exec(cmd=["mkdir", "-p", "--", str(Path(file).parent.as_posix())])
+
+        # If content is small enough, write directly
+        if len(contents) <= CHUNK_SIZE:
+            await self._write_file_only(file, contents)
+            return
+
+        # For large contents, split into chunks
+        chunks = [
+            contents[i : i + CHUNK_SIZE] for i in range(0, len(contents), CHUNK_SIZE)
+        ]
+
+        tmp_start = f"/tmp/{__name__}_write_file_{time.time_ns()}_"
+
+        # Create temporary directory path
+        temp_dir = f"{tmp_start}split_{Path(file).name}"
+        try:
+            # Create temp directory
+            await self.exec(cmd=["mkdir", "-p", "--", temp_dir])
+
+            # Write chunks to temp files
+            for i, chunk in enumerate(chunks):
+                chunk_file = f"{temp_dir}/chunk_{i}"
+                await self._write_file_only(chunk_file, chunk)
+
+            # Combine chunks
+            chunk_pattern = f"{temp_dir}/chunk_*"
+            chunks_cat = f"cat {chunk_pattern} > {file}"
+            await self.exec(cmd=["sh", "-c", chunks_cat])
+
+        finally:
+            # Clean up temporary files
+            await self.exec(cmd=["rm", "-rf", temp_dir])
+
+    async def read_file(self, file: str, text: bool = True) -> Union[str | bytes]:  # type: ignore
+        """Read a file from the sandbox environment.
+
+        File size is limited to 16 MiB - this is a limitation of proxmox.
+        This is a deviation from the Inspect spec which states 100 MiB.
+        """
+        if self.vm_id is None:
+            raise ValueError("VM ID is not set")
+        # Note, per https://pve.proxmox.com/pve-docs/api-viewer/index.html#/nodes/{node}/qemu/{vm_id}/agent/file-read
+        # read from proxmox API is limited to 16777216 bytes
+        try:
+            read_get_response = await self.agent_commands.read_file(
+                node="proxmox",
+                vm_id=self.vm_id,
+                filepath=file,
+                max_size=min(SandboxEnvironmentLimits.MAX_READ_FILE_SIZE, 16777216),
+            )
+        except Exception as ex:
+            if "Agent error" in str(ex):
+                if "No such file or directory" in str(ex):
+                    raise FileNotFoundError(
+                        errno.ENOENT, "No such file or directory.", file
+                    )
+                elif "Is a directory" in str(ex):
+                    raise IsADirectoryError(errno.EISDIR, "Is a directory", file)
+                else:
+                    raise ex
+            else:
+                raise ex
+        if (
+            getattr(read_get_response, "truncated", False)
+            or len(read_get_response["content"])
+            >= SandboxEnvironmentLimits.MAX_READ_FILE_SIZE
+        ):
+            raise OutputLimitExceededError("Output size exceeds 16 MiB limit.", file)
+        mangled_response = read_get_response["content"]
+        bytes_data = mangled_response.encode("iso-8859-1")
+        if text:
+            return bytes_data.decode("utf-8")
+        else:
+            return bytes_data
+
+    async def connection(self) -> SandboxConnection:
+        """
+        Raises:
+           NotImplementedError: For sandboxes that don't provide connections
+           ConnectionError: If sandbox is not currently running.
+        """
+        raise NotImplementedError

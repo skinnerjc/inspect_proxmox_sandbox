@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "inspect-vm-sandbox"
+version = "0.1.0"
+description = ""
+authors = ["UK AI Safety Institute"]
+readme = "README.md"
+# requires-python = ">=3.12,<4.0" # temporarily <4.0 to deal with poetry nonsense
+packages = [
+  {include = "vmsandbox", from = "src"},
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+requests = ">=2.32.3"
+tenacity = "^9.0.0"
+httpx = "^0.28.1"
+pydantic = "^2.10.6"
+pycdlib = "^1.14.0"
+
+[tool.poetry.group.dev.dependencies]
+aisitools = {git = "ssh://git@github.com/AI-Safety-Institute/aisi-inspect-tools"}
+inspect-ai =  {git = "ssh://git@github.com/UKGovernmentBEIS/inspect_ai", branch="main"}
+mypy = "^1.14.1"
+pytest = "^8.3.4"
+pytest-asyncio = "^0.25.3"
+ruff = "^0.9.3"
+
+[tool.poetry.plugins.inspect_ai]
+vm-sandbox = "vmsandbox.inspect.vm_sandbox_environment"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = [ "tests" ]
+testpaths = [ "tests/**/*.py" ]
