@@ -466,3 +466,22 @@ class VmSandboxEnvironment(SandboxEnvironment):
            ConnectionError: If sandbox is not currently running.
         """
         raise NotImplementedError
+
+    async def create_snapshot(self, snapshot_name: str) -> None:
+        async def snapshotter() -> None:
+            await self.agent_commands.create_snapshot(
+                node="proxmox", vm_id=self.vm_id, snapshot_name=snapshot_name
+            )
+
+        await self.infra_commands.do_action_and_wait_for_tasks(snapshotter)
+
+    async def restore_snapshot(self, snapshot_name: str) -> None:
+        async def snapshotter() -> None:
+            await self.agent_commands.rollback_to_snapshot(
+                node="proxmox", vm_id=self.vm_id, snapshot_name=snapshot_name
+            )
+
+        await self.infra_commands.do_action_and_wait_for_tasks(snapshotter)
+        await self.infra_commands.await_vm(
+            node="proxmox", vm_id=self.vm_id, is_sandbox=True
+        )

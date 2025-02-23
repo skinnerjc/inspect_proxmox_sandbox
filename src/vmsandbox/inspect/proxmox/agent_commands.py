@@ -75,3 +75,12 @@ class AgentCommands:
         max_size: int = SandboxEnvironmentLimits.MAX_READ_FILE_SIZE,
     ):
         return await self.async_proxmox.read_file(node, vm_id, filepath, max_size)
+
+    async def create_snapshot(self, node: str, vm_id: int, snapshot_name: str) -> None:
+        path = f"/nodes/{node}/qemu/{vm_id}/snapshot"
+        data = {"snapname": snapshot_name, "vmstate": 1}
+        await self.async_proxmox.request("POST", path, data=data)
+    
+    async def rollback_to_snapshot(self, node: str, vm_id: int, snapshot_name: str) -> None:
+        path = f"/nodes/{node}/qemu/{vm_id}/snapshot/{snapshot_name}/rollback"
+        await self.async_proxmox.request("POST", path)
