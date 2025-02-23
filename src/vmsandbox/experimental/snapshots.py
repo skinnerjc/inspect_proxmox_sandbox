@@ -1,0 +1,168 @@
+import os
+from ipaddress import ip_address, ip_network
+
+from inspect_ai import Task, eval, task
+from inspect_ai.dataset import Sample
+from inspect_ai.model import ModelOutput, get_model
+from inspect_ai.scorer import includes
+from inspect_ai.tool import Tool, bash, tool
+from inspect_ai.util import sandbox, store
+from vmsandbox.inspect.schema import (
+    DhcpRange,
+    SdnConfig,
+    SubnetConfig,
+    VmConfig,
+    VmSourceConfig,
+    VnetConfig,
+)
+from vmsandbox.inspect.vm_sandbox_environment import (
+    VmSandboxEnvironment,
+    VmSandboxEnvironmentConfig,
+)
+
+from inspect_ai.solver import basic_agent
+
+
+example_dataset = [
+    Sample(
+        input="""
+sample text
+        """,
+        target="42",
+    ),
+]
+
+
+@tool
+def create_snapshot() -> Tool:
+    async def do_create_snapshot() -> int:
+        """
+        Use this function to create a snapshot of your sandbox
+
+        Returns:
+          The number of snapshot, which can be used to rollback
+        """
+        current_sandbox = sandbox()
+        if not isinstance(current_sandbox, VmSandboxEnvironment):
+            raise ValueError("This tool only works with VM sandboxes")
+        current_snapshot_id = store().get("current_snapshot_id", 0)
+        new_snapshot_id = current_snapshot_id + 1
+        await current_sandbox.create_snapshot(f"inspect{new_snapshot_id}")
+        return new_snapshot_id
+
+    return do_create_snapshot
+
+
+@tool
+def rollback_to_snapshot() -> Tool:
+    async def do_rollback_to_snapshot(snapshot_id: int) -> bool:
+        """
+        Use this function to roll back to a previous snapshot of your sandbox
+
+        Args:
+            snapshot_id (int): id of the previous snapshot
+        Returns:
+            bool: Always True
+        """
+        current_sandbox = sandbox()
+        if not isinstance(current_sandbox, VmSandboxEnvironment):
+            raise ValueError("This tool only works with VM sandboxes")
+        await current_sandbox.restore_snapshot(f"inspect{snapshot_id}")
+        return True
+
+    return do_rollback_to_snapshot
+
+
+@task
+def try_snapshots() -> Task:
+    return Task(
+        dataset=example_dataset,
+        solver=[
+            basic_agent(
+                tools=[bash(), create_snapshot(), rollback_to_snapshot()],
+                message_limit=20,
+            ),
+        ],
+        scorer=includes(),
+        sandbox=(
+            "vm",
+            VmSandboxEnvironmentConfig(
+                host="172.31.29.151",
+                port=11002,
+                user="root",
+                password=os.getenv("PROXMOX_PASSWORD"),
+                user_realm="pam",
+                vms_config=(
+                    VmConfig(vm_source_config=VmSourceConfig(built_in="ubuntu24.04")),
+                ),
+                sdn_config=SdnConfig(
+                    vnet_configs=(
+                        VnetConfig(
+                            subnets=(
+                                SubnetConfig(
+                                    cidr=ip_network("192.168.20.0/24"),
+                                    gateway=ip_address("192.168.20.1"),
+                                    snat=True,
+                                    dhcp_ranges=(
+                                        DhcpRange(
+                                            start=ip_address("192.168.20.50"),
+                                            end=ip_address("192.168.20.100"),
+                                        ),
+                                    ),
+                                ),
+                            )
+                        ),
+                    ),
+                    use_pve_ipam_dnsnmasq=True,
+                ),
+            ),
+        ),
+    )
+
+
+if __name__ == "__main__":
+    eval(
+        tasks=[try_snapshots()],
+        model=get_model(
+            "mockllm/model",
+            custom_outputs=[
+                ModelOutput.for_tool_call(
+                    model="mockllm/model",
+                    tool_name="bash",
+                    tool_arguments={"cmd": "ls -d /f*"},
+                ),
+                ModelOutput.for_tool_call(
+                    model="mockllm/model",
+                    tool_name="create_snapshot",
+                    tool_arguments={},
+                ),
+                ModelOutput.for_tool_call(
+                    model="mockllm/model",
+                    tool_name="bash",
+                    tool_arguments={"cmd": "touch /flange"},
+                ),
+                ModelOutput.for_tool_call(
+                    model="mockllm/model",
+                    tool_name="bash",
+                    tool_arguments={"cmd": "ls -d /f*"},
+                ),
+                ModelOutput.for_tool_call(
+                    model="mockllm/model",
+                    tool_name="rollback_to_snapshot",
+                    tool_arguments={"snapshot_id": 1},
+                ),
+                ModelOutput.for_tool_call(
+                    model="mockllm/model",
+                    tool_name="bash",
+                    tool_arguments={"cmd": "ls -d /f*"},
+                ),
+                ModelOutput.for_tool_call(
+                    model="mockllm/model",
+                    tool_name="submit",
+                    tool_arguments={"answer": "42"},
+                ),
+            ],
+        ),
+        log_level="DEBUG",
+        # sandbox_cleanup=False
+    )
