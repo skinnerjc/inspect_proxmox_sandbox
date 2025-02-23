@@ -5,6 +5,7 @@ from typing import Tuple, Callable, Awaitable
 
 import tenacity
 from inspect_ai.util import trace_action
+import asyncio
 
 from vmsandbox.inspect.proxmox.agent_commands import AgentCommands
 from vmsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
@@ -28,7 +29,7 @@ class InfraCommands(abc.ABC):
         self.async_proxmox = async_proxmox
 
     async def do_action_and_wait_for_tasks(
-        self, the_action: Callable[[], Awaitable[None]]
+        self, the_action: Callable[[], Awaitable[None]], async_wait_seconds: int = 2
     ) -> None:
         incomplete_tasks_pre_action = await self.new_incomplete_tasks(
             pre_existing_incomplete_tasks=[]
@@ -36,18 +37,21 @@ class InfraCommands(abc.ABC):
 
         await the_action()
 
+        # Regrettably, sometimes the resulting server-side tasks don't turn up immediately
+        await asyncio.sleep(async_wait_seconds)
+
         @tenacity.retry(
             wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
             stop=tenacity.stop_after_delay(300),
             retry=tenacity.retry_if_result(lambda x: x is False),
         )
-        async def new_tasks_are_running() -> bool:
+        async def new_tasks_are_complete() -> bool:
             post_action_current_tasks = await self.new_incomplete_tasks(
                 pre_existing_incomplete_tasks=incomplete_tasks_pre_action
             )
             return not post_action_current_tasks
 
-        await new_tasks_are_running()
+        await new_tasks_are_complete()
 
     async def create_and_upload_cloudinit_iso(
         self,
@@ -713,7 +717,7 @@ runcmd:
 
                 await create_clone()
 
-                async def do_action() -> None:
+                async def update_network() -> None:
                     await self.async_proxmox.request(
                         "POST",
                         f"/nodes/{node}/qemu/{new_vm_id}/config",
@@ -723,7 +727,7 @@ runcmd:
                         },
                     )
 
-                await self.do_action_and_wait_for_tasks(do_action)
+                await self.do_action_and_wait_for_tasks(update_network)
 
                 await self.start_and_await(node, new_vm_id)
 

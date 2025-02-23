@@ -198,7 +198,10 @@ class VmSandboxEnvironment(SandboxEnvironment):
                 # we only need a single VM sandbox to have enough information to tear them all down
                 any_vm_sandbox_environment = env
 
-        if any_vm_sandbox_environment is not None and any_vm_sandbox_environment.sdn_config is not None:
+        if (
+            any_vm_sandbox_environment is not None
+            and any_vm_sandbox_environment.sdn_config is not None
+        ):
             if any_vm_sandbox_environment.sdn_zone_id is None:
                 raise ValueError("SDN zone ID is not set even though sdn_config was!")
             async with concurrency("proxmox", 1):

@@ -127,5 +127,6 @@ The built-in VM has username ubuntu, password Password2.0 (this will be changed 
 ## Tech debt
 
 - Split up files in proxmox module
+- Types, mypy, ruff, etc.
 - Tests are a mess and have hard-coded credentials
 - Error handling, especially surfacing the HTTP body text when the Proxmox server returns HTTP 500
