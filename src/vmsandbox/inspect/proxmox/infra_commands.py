@@ -1,7 +1,7 @@
 import abc
 from ipaddress import ip_address, ip_network
 from logging import getLogger
-from typing import Tuple
+from typing import Tuple, Callable, Awaitable
 
 import tenacity
 from inspect_ai.util import trace_action
@@ -26,6 +26,28 @@ class InfraCommands(abc.ABC):
 
     def __init__(self, async_proxmox: AsyncProxmoxAPI):
         self.async_proxmox = async_proxmox
+
+    async def do_action_and_wait_for_tasks(
+        self, the_action: Callable[[], Awaitable[None]]
+    ) -> None:
+        incomplete_tasks_pre_action = await self.new_incomplete_tasks(
+            pre_existing_incomplete_tasks=[]
+        )
+
+        await the_action()
+
+        @tenacity.retry(
+            wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
+            stop=tenacity.stop_after_delay(300),
+            retry=tenacity.retry_if_result(lambda x: x is False),
+        )
+        async def new_tasks_are_running() -> bool:
+            post_action_current_tasks = await self.new_incomplete_tasks(
+                pre_existing_incomplete_tasks=incomplete_tasks_pre_action
+            )
+            return not post_action_current_tasks
+
+        await new_tasks_are_running()
 
     async def create_and_upload_cloudinit_iso(
         self,
@@ -691,31 +713,17 @@ runcmd:
 
                 await create_clone()
 
-                incomplete_tasks_pre_create = await self.new_incomplete_tasks(
-                    pre_existing_incomplete_tasks=[]
-                )
-
-                await self.async_proxmox.request(
-                    "POST",
-                    f"/nodes/{node}/qemu/{new_vm_id}/config",
-                    json={
-                        "tags": "",  # remove the tag as that's only for the template
-                        "net0": f"virtio,bridge={vnet_id}",
-                    },
-                )
-
-                @tenacity.retry(
-                    wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
-                    stop=tenacity.stop_after_delay(300),
-                    retry=tenacity.retry_if_result(lambda x: x is False),
-                )
-                async def new_tasks_are_running() -> bool:
-                    post_create_current_tasks = await self.new_incomplete_tasks(
-                        pre_existing_incomplete_tasks=incomplete_tasks_pre_create
+                async def do_action() -> None:
+                    await self.async_proxmox.request(
+                        "POST",
+                        f"/nodes/{node}/qemu/{new_vm_id}/config",
+                        json={
+                            "tags": "",  # remove the tag as that's only for the template
+                            "net0": f"virtio,bridge={vnet_id}",
+                        },
                     )
-                    return not post_create_current_tasks
 
-                await new_tasks_are_running()
+                await self.do_action_and_wait_for_tasks(do_action)
 
                 await self.start_and_await(node, new_vm_id)
 
