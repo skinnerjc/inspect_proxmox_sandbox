@@ -691,6 +691,10 @@ runcmd:
 
                 await create_clone()
 
+                incomplete_tasks_pre_create = await self.new_incomplete_tasks(
+                    pre_existing_incomplete_tasks=[]
+                )
+
                 await self.async_proxmox.request(
                     "POST",
                     f"/nodes/{node}/qemu/{new_vm_id}/config",
@@ -700,6 +704,19 @@ runcmd:
                     },
                 )
 
+                @tenacity.retry(
+                    wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
+                    stop=tenacity.stop_after_delay(300),
+                    retry=tenacity.retry_if_result(lambda x: x is False),
+                )
+                async def new_tasks_are_running() -> bool:
+                    post_create_current_tasks = await self.new_incomplete_tasks(
+                        pre_existing_incomplete_tasks=incomplete_tasks_pre_create
+                    )
+                    return not post_create_current_tasks
+
+                await new_tasks_are_running()
+
                 await self.start_and_await(node, new_vm_id)
 
         else:
@@ -707,3 +724,25 @@ runcmd:
         if new_vm_id is None:
             raise ValueError("No VM ID?")
         return new_vm_id
+
+    async def new_incomplete_tasks(self, pre_existing_incomplete_tasks):
+        current_tasks = await self.async_proxmox.request("GET", "/cluster/tasks")
+
+        current_incomplete_tasks = [
+            current_task
+            for current_task in current_tasks
+            if (
+                ("status" in current_task and current_task["status"] != "OK")
+                or "status" not in current_task
+            )
+        ]
+
+        new_tasks = [
+            current_incomplete_task
+            for current_incomplete_task in current_incomplete_tasks
+            if not any(
+                pre_existing_task["upid"] == current_incomplete_task["upid"]
+                for pre_existing_task in pre_existing_incomplete_tasks
+            )
+        ]
+        return new_tasks

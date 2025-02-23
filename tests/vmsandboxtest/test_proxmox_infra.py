@@ -16,6 +16,8 @@ from vmsandbox.inspect.vm_sandbox_environment import (
     VmSandboxEnvironmentConfig,
 )
 
+import random
+
 
 async def test_create_sdn(request) -> None:
     third = "21"
@@ -60,8 +62,11 @@ async def test_create_vm_built_in_ova() -> None:
             verify_ssl=False,
         )
     )
+
+    ids_start = f"hel{random.randint(100, 999)}"
+
     await infra_config.create_sdn_and_vms(
-        proxmox_ids_start="hel000",
+        proxmox_ids_start=ids_start,
         sdn_config=VmSandboxEnvironmentConfig(
             host="", port=0, user="", user_realm="", password=""
         ).sdn_config,
@@ -69,8 +74,8 @@ async def test_create_vm_built_in_ova() -> None:
     )
     await infra_config.create_and_start_vm(
         node="proxmox",
-        sdn_zone_id="hel000z",
-        vnet_id="hel000v0",
+        sdn_zone_id=f"{ids_start}z",
+        vnet_id=f"{ids_start}v0",
         subnet="192.168.21.0/24",
         vm_config=VmConfig(
             vm_source_config=VmSourceConfig(built_in="ubuntu24.04"), is_sandbox=True
