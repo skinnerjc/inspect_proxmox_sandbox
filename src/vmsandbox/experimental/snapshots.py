@@ -5,8 +5,10 @@ from inspect_ai import Task, eval, task
 from inspect_ai.dataset import Sample
 from inspect_ai.model import ModelOutput, get_model
 from inspect_ai.scorer import includes
+from inspect_ai.solver import basic_agent
 from inspect_ai.tool import Tool, bash, tool
 from inspect_ai.util import sandbox, store
+
 from vmsandbox.inspect.schema import (
     DhcpRange,
     SdnConfig,
@@ -19,9 +21,6 @@ from vmsandbox.inspect.vm_sandbox_environment import (
     VmSandboxEnvironment,
     VmSandboxEnvironmentConfig,
 )
-
-from inspect_ai.solver import basic_agent
-
 
 example_dataset = [
     Sample(
@@ -129,7 +128,9 @@ if __name__ == "__main__":
                 ModelOutput.for_tool_call(
                     model="mockllm/model",
                     tool_name="bash",
-                    tool_arguments={"cmd": "ls -d /f*"},
+                    tool_arguments={
+                        "cmd": "ls -d /f*"
+                    },  # the file doesn't exist, so this will return 'No such file or directory'
                 ),
                 ModelOutput.for_tool_call(
                     model="mockllm/model",
@@ -154,7 +155,9 @@ if __name__ == "__main__":
                 ModelOutput.for_tool_call(
                     model="mockllm/model",
                     tool_name="bash",
-                    tool_arguments={"cmd": "ls -d /f*"},
+                    tool_arguments={
+                        "cmd": "ls -d /f*"
+                    },  # this will again show 'No such file or directory' since we're at the previous snapshot
                 ),
                 ModelOutput.for_tool_call(
                     model="mockllm/model",
