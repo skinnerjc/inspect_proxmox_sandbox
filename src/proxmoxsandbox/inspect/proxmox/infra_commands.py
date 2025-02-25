@@ -105,12 +105,11 @@ class InfraCommands(abc.ABC):
                 zone_create_json["ipam"] = "pve"
                 zone_create_json["dhcp"] = "dnsmasq"
 
-            zone_create_response = await self.async_proxmox.request(
+            await self.async_proxmox.request(
                 "POST",
                 "/cluster/sdn/zones",
                 json=zone_create_json,
             )
-            # TODO check response
 
         if len(sdn_config.vnet_configs) > 10:
             raise ValueError(
@@ -121,12 +120,11 @@ class InfraCommands(abc.ABC):
             vnet_id = f"{proxmox_ids_start}v{idx}"
 
             with trace_action(self.logger, self.TRACE_NAME, f"create vnet {vnet_id=}"):
-                vnet_create_response = await self.async_proxmox.request(
+                await self.async_proxmox.request(
                     "POST",
                     "/cluster/sdn/vnets",
                     json={"vnet": vnet_id, "zone": sdn_zone_id},
                 )
-                # TODO check response
 
             for subnet in vnet_config.subnets:
                 with trace_action(
@@ -134,7 +132,7 @@ class InfraCommands(abc.ABC):
                     self.TRACE_NAME,
                     f"create subnet {vnet_id=} {subnet.cidr=}",
                 ):
-                    subnet_create_response = await self.async_proxmox.request(
+                    await self.async_proxmox.request(
                         "POST",
                         f"/cluster/sdn/vnets/{vnet_id}/subnets",
                         json={
@@ -149,8 +147,6 @@ class InfraCommands(abc.ABC):
                             ),
                         },
                     )
-
-                    # TODO check response
 
             # TODO firewall to block access to proxmox?
 

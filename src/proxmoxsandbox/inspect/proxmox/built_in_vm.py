@@ -23,6 +23,7 @@ class BuiltInVM(abc.ABC):
     logger = getLogger(__name__)
 
     TRACE_NAME = "proxmox_built_in_vm"
+    STATIC_SDN_START = "inspvm"
 
     async_proxmox: AsyncProxmoxAPI
     infra_commands: InfraCommands
@@ -268,16 +269,15 @@ runcmd:
         existing_zones = await self.infra_commands.list_sdn_zones()
 
         exists_already = any(
-            zone_info["zone"] and zone_info["zone"] == "inspvmz"
+            zone_info["zone"] and zone_info["zone"] == f"{self.STATIC_SDN_START}z"
             for zone_info in existing_zones
         )
 
         if exists_already:
-            sdn_zone_id = "inspvmz"
-            vnet_id = "inspvmv0"
+            vnet_id = f"{self.STATIC_SDN_START}v0"
         else:
             _, vnet_id, _ = await self.infra_commands.create_sdn(
-                proxmox_ids_start="inspvm",
+                proxmox_ids_start=self.STATIC_SDN_START,
                 sdn_config=SdnConfig(
                     vnet_configs=(
                         VnetConfig(

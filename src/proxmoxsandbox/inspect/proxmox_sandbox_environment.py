@@ -166,7 +166,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
                     await infra_commands.check_cidrs(sdn_config=try_sdn_config)
                     sdn_config = try_sdn_config
                     break
-                except ValueError as ex:
+                except ValueError:
                     continue
         if sdn_config is None:
             raise ValueError("Could not find a suitable IP range for the SDN")
