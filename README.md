@@ -111,7 +111,7 @@ To access the Proxmox UI, at the moment you need to forward the port as follows.
 
 Suppose your developer VM is called `my-dev-vm`, and assuming you copy your `.env` file onto your Mac, you can run on your Mac:
 
-`set +a; source .env; set -a`
+`set -a; source .env; set +a`
 
 Then you can ssh as follows
 
