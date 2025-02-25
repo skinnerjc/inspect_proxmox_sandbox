@@ -103,6 +103,20 @@ sandbox=SandboxEnvironmentSpec(
 )
 ```
 
+## Using backup files
+
+Proxmox's HTTP API will not let you upload a .zst backup file.
+
+Instead:
+
+1. Upload your zst backups to S3
+2. Connect to the web frontend (see section Observing the VMs)
+3. Open Datacenter -> Proxmox node -> Shell
+4. Paste in temporary AWS S3 credentials
+5. Download the zst backups into /var/lib/vz/dump
+
+![Demo of zst upload](docs/proxmox_shell.png "Getting a shell on Proxmox server")
+
 ## Observing the VMs
 
 Note, if you are having problems, then setting Inspect's sandbox_cleanup=False will be helpful.
