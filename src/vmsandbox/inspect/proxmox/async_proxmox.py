@@ -4,7 +4,6 @@ from typing import Optional
 import httpx
 from inspect_ai.util import (
     OutputLimitExceededError,
-    SandboxEnvironmentLimits,
     trace_action,
 )
 from pydantic_core import from_json
@@ -105,8 +104,9 @@ class AsyncProxmoxAPI:
     async def ping_qemu_agent(self, node: str, vm_id: int):
         await self.request("POST", f"/nodes/{node}/qemu/{vm_id}/agent/ping")
 
-    # TODO split this method and push most of it down into agent_commands, it's too coupled
-    async def read_file(self, node: str, vm_id: int, filepath: str, max_size: int):
+    async def read_file(
+        self, node: str, vm_id: int, filepath: str, max_size: int, max_size_str: str
+    ):
         """Read a file from the VM using QEMU agent with optional size limit.
 
         Args:
@@ -114,6 +114,7 @@ class AsyncProxmoxAPI:
             vm_id (int): The VM ID
             filepath (str): Path to the file to read
             max_size (int, optional): Maximum number of bytes to read. None means no limit.
+            max_size_str (str): Human-readable string of the max_size
 
         Returns:
             dict: The file contents and metadata
@@ -122,13 +123,6 @@ class AsyncProxmoxAPI:
             FileTooLargeError: If the file size exceeds max_size
         """
         path = f"/nodes/{node}/qemu/{vm_id}/agent/file-read"
-
-        # this is a hack; it would be better to use a type here with e.g. size_bytes and friendly_name
-        max_size_str = (
-            SandboxEnvironmentLimits.MAX_READ_FILE_SIZE_STR
-            if max_size == SandboxEnvironmentLimits.MAX_READ_FILE_SIZE
-            else SandboxEnvironmentLimits.MAX_EXEC_OUTPUT_SIZE_STR
-        )
 
         async with httpx.AsyncClient(
             verify=self.verify_ssl,
