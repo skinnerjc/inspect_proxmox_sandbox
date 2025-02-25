@@ -46,6 +46,53 @@ class BuiltInVM(abc.ABC):
 package_update: true
 packages:
   - qemu-guest-agent
+# from buildpack-deps Dockerfile
+  - autoconf
+  - automake
+  - bzip2
+  - default-libmysqlclient-dev
+  - dpkg-dev
+  - file
+  - g++
+  - gcc
+  - imagemagick
+  - libbz2-dev
+  - libc6-dev
+  - libcurl4-openssl-dev
+  - libdb-dev
+  - libevent-dev
+  - libffi-dev
+  - libgdbm-dev
+  - libglib2.0-dev
+  - libgmp-dev
+  - libjpeg-dev
+  - libkrb5-dev
+  - liblzma-dev
+  - libmagickcore-dev
+  - libmagickwand-dev
+  - libmaxminddb-dev
+  - libncurses-dev # changed from libncurses5-dev
+#   - libncursesw5-dev # not available (possibly related discussion https://github.com/cardano-foundation/developer-portal/issues/1364)
+  - libpng-dev
+  - libpq-dev
+  - libreadline-dev
+  - libsqlite3-dev
+  - libssl-dev
+  - libtool
+  - libwebp-dev
+  - libxml2-dev
+  - libxslt1-dev # changed from libxslt-dev
+  - libyaml-dev
+  - make
+  - patch
+  - unzip
+  - xz-utils
+  - zlib1g-dev
+# equivalent of python3.12-bookworm Dockerfile
+  - python3
+  - python3-pip
+  - python3-venv
+  - python-is-python3
 users:
   - name: ubuntu
     passwd: $6$rounds=4096$6ZjLzzWD9RGieC1y$8R5a/3Vwp3xr9ae9GVlCH0xGGofhp8xlKdddWRugOPhj3frUMr5g57x8t28JRFdS/scPl5AUwrTjah/BVe8dY1
