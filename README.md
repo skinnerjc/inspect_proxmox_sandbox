@@ -143,3 +143,19 @@ including the running processes. See src/vmsandbox/experimental/snapshots.py for
 - Test coverage is not great and it's not well documented how to get started running them
 - Error handling, especially surfacing the HTTP body text when the Proxmox server returns HTTP 500
 - Does not work with Inspect's post-hoc sandbox cleanup feature
+
+## Developing
+
+To develop on this project, run this beforehand:
+
+```
+uv sync
+```
+
+You then can either source the venv with
+
+```
+source .bin/venv/activate
+```
+
+or prefix your pytest (etc.) commands with `uv run ...`
