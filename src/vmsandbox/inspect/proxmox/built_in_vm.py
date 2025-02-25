@@ -304,44 +304,28 @@ runcmd:
             self.TRACE_NAME,
             f"create VM from OVA {next_available_vm_id=}",
         ):
-            await self.async_proxmox.request(
-                "POST",
-                f"/nodes/{self.node}/qemu",
-                json={
-                    "vmid": next_available_vm_id,
-                    "name": f"inspect-{vm_source_config.built_in}",
-                    "node": self.node,
-                    "cpu": "host",
-                    "memory": 2048,
-                    "cores": 2,
-                    "ostype": "l26",
-                    "scsi0": "local-lvm:0,import-from=local:import/ubuntu24.04.ova/ubuntu-noble-24.04-cloudimg.vmdk,format=qcow2,cache=writeback",
-                    "scsihw": "virtio-scsi-single",
-                    "net0": f"virtio,bridge={vnet_id}",
-                    "start": False,
-                    "agent": "enabled=1",
-                },
-            )
-            await self.infra_commands.await_vm(
-                vm_id=next_available_vm_id,
-                is_sandbox=False,
-                status_for_wait="stopped",
-            )
 
-            # @tenacity.retry(
-            #     wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
-            #     stop=tenacity.stop_after_delay(120),
-            # )
-            # async def add_cloudinit_drive() -> None:
-            #     # this fails while the VM is creating. It would be better to wait until the VM is finished, but
-            #     # it seems the VM is always in the status "stopped" until creation is finished
-            #     await self.async_proxmox.request(
-            #         "POST",
-            #         f"/nodes/{self.node}/qemu/{next_available_vm_id}/config",
-            #         json={"ide3": "local-lvm:cloudinit"},
-            #     )
+            async def do_create() -> None:
+                await self.async_proxmox.request(
+                    "POST",
+                    f"/nodes/{self.node}/qemu",
+                    json={
+                        "vmid": next_available_vm_id,
+                        "name": f"inspect-{vm_source_config.built_in}",
+                        "node": self.node,
+                        "cpu": "host",
+                        "memory": 2048,
+                        "cores": 2,
+                        "ostype": "l26",
+                        "scsi0": "local-lvm:0,import-from=local:import/ubuntu24.04.ova/ubuntu-noble-24.04-cloudimg.vmdk,format=qcow2,cache=writeback",
+                        "scsihw": "virtio-scsi-single",
+                        "net0": f"virtio,bridge={vnet_id}",
+                        "start": False,
+                        "agent": "enabled=1",
+                    },
+                )
 
-            # await add_cloudinit_drive()
+            await self.task_wrapper.do_action_and_wait_for_tasks(do_create)
 
             await self.create_and_upload_cloudinit_iso(
                 storage="local",
@@ -397,25 +381,6 @@ runcmd:
 
             await wait_for_cloud_init()
 
-            res_sync = await agent_commands.exec_command(
-                vm_id=next_available_vm_id,
-                command=["sync"],
-            )
-
-            @tenacity.retry(
-                wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
-                stop=tenacity.stop_after_delay(300),
-                retry=tenacity.retry_if_result(lambda x: x is False),
-            )
-            async def wait_for_sync() -> bool:
-                exec_status = await agent_commands.get_agent_exec_status(
-                    vm_id=next_available_vm_id, pid=res_sync["pid"]
-                )
-                print(f"wait_for_exec; {exec_status=}")
-                return exec_status["exited"] == 1
-
-            await wait_for_sync()
-
             await self.async_proxmox.request(
                 "POST",
                 f"/nodes/{self.node}/qemu/{next_available_vm_id}/status/shutdown",
@@ -446,6 +411,18 @@ runcmd:
 
             await is_template()
 
+            @tenacity.retry(
+                wait=tenacity.wait_exponential(min=1, exp_base=1.3),
+                stop=tenacity.stop_after_delay(30),
+            )
+            async def remove_cdrom() -> None:
+                await self.async_proxmox.request(
+                    "POST",
+                    f"/nodes/{self.node}/qemu/{next_available_vm_id}/config",
+                    json={"ide2": "none,media=cdrom"},
+                )
+
+            await remove_cdrom()
+
             # TODO tear down SDN zone and vnet
-            # TODO remove CDROM drive
             # TODO delete cloudinit ISO
