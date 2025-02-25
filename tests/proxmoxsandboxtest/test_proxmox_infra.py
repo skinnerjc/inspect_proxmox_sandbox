@@ -87,7 +87,7 @@ async def test_create_vm_built_in_ova(proxmox_api: AsyncProxmoxAPI) -> None:
 
     finally:
         if vm_id is not None:
-            await infra_config.destroy_vm("proxmox", vm_id)
+            await infra_config.destroy_vm(vm_id)
         if sdn_zone_id is not None:
             await infra_config.tear_down_sdn_zone_and_vnet(sdn_zone_id)
         # TODO delete built-in

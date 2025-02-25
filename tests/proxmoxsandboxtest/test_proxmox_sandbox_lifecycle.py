@@ -22,6 +22,6 @@ async def test_multiple_sandboxes(sandbox_env_config) -> None:
         task_name, envs_dict = await setup_sandbox(task_name, sandbox_env_config)
         sandboxes["second"] = envs_dict["default"]
     finally:
-        ProxmoxSandboxEnvironment.sample_cleanup(
+        await ProxmoxSandboxEnvironment.sample_cleanup(
             task_name="unused", config=sandbox_env_config, environments=sandboxes, interrupted=False
         )

@@ -44,7 +44,7 @@ if there is only a single item in the tuple.
 Most tools use only the first sandbox, so you should list the one you want the agent to operate from first.
 
 ```python
-sandbox=(
+sandbox=SandboxEnvironmentSpec(
     "proxmox",
     ProxmoxSandboxEnvironmentConfig(
         # These config items will be taken from environment variables, if not specified here

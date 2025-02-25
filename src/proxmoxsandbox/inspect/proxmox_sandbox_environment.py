@@ -36,7 +36,7 @@ from proxmoxsandbox.inspect.schema import (
 NODE_NAME = "proxmox"
 
 
-@sandboxenv(name="vm")
+@sandboxenv(name="proxmox")
 class ProxmoxSandboxEnvironment(SandboxEnvironment):
     logger = getLogger(__name__)
 

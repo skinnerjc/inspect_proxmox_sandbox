@@ -4,15 +4,15 @@ from inspect_ai.model import ModelOutput, get_model
 from inspect_ai.scorer import includes
 from inspect_ai.solver import basic_agent
 from inspect_ai.tool import Tool, bash, tool
-from inspect_ai.util import sandbox, store
+from inspect_ai.util import SandboxEnvironmentSpec, sandbox, store
 
-from proxmoxsandbox.inspect.schema import (
-    VmConfig,
-    VmSourceConfig,
-)
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
     ProxmoxSandboxEnvironment,
     ProxmoxSandboxEnvironmentConfig,
+)
+from proxmoxsandbox.inspect.schema import (
+    VmConfig,
+    VmSourceConfig,
 )
 
 example_dataset = [
@@ -87,9 +87,9 @@ def try_snapshots() -> Task:
             ),
         ],
         scorer=includes(),
-        sandbox=(
-            "vm",
-            ProxmoxSandboxEnvironmentConfig(
+        sandbox=SandboxEnvironmentSpec(
+            type="proxmox",
+            config=ProxmoxSandboxEnvironmentConfig(
                 vms_config=(
                     VmConfig(vm_source_config=VmSourceConfig(built_in="ubuntu24.04")),
                 ),

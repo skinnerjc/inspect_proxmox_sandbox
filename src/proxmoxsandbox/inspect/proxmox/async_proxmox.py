@@ -98,6 +98,8 @@ class AsyncProxmoxAPI:
 
         # Add CSRF token for write operations
         if method.upper() in ["POST", "PUT", "DELETE"]:
+            if self.csrf_token is None:
+                raise ValueError("CSRF token was not set; login first")
             headers["CSRFPreventionToken"] = self.csrf_token
         return headers
 

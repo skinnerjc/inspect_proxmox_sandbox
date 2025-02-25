@@ -1,6 +1,8 @@
 import logging
 from typing import Dict, Tuple
 
+from inspect_ai.util import SandboxEnvironment
+
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
     ProxmoxSandboxEnvironment,
     ProxmoxSandboxEnvironmentConfig,
@@ -26,7 +28,7 @@ def setup_requests_logging() -> None:
 async def setup_sandbox(
     task_name: str,
     config: ProxmoxSandboxEnvironmentConfig
-) -> Tuple[str, Dict[str, ProxmoxSandboxEnvironment]]:
+) -> Tuple[str, Dict[str, SandboxEnvironment]]:
     """Setup sandbox environment with given configuration"""
     await ProxmoxSandboxEnvironment.task_init(task_name=task_name, config=None)
     envs_dict = await ProxmoxSandboxEnvironment.sample_init(
