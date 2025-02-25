@@ -1,9 +1,9 @@
 import logging
 from typing import Dict, Tuple
 
-from vmsandbox.inspect.vm_sandbox_environment import (
-    VmSandboxEnvironment,
-    VmSandboxEnvironmentConfig,
+from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
+    ProxmoxSandboxEnvironment,
+    ProxmoxSandboxEnvironmentConfig,
 )
 
 
@@ -25,11 +25,11 @@ def setup_requests_logging() -> None:
 
 async def setup_sandbox(
     task_name: str,
-    config: VmSandboxEnvironmentConfig
-) -> Tuple[str, Dict[str, VmSandboxEnvironment]]:
+    config: ProxmoxSandboxEnvironmentConfig
+) -> Tuple[str, Dict[str, ProxmoxSandboxEnvironment]]:
     """Setup sandbox environment with given configuration"""
-    await VmSandboxEnvironment.task_init(task_name=task_name, config=None)
-    envs_dict = await VmSandboxEnvironment.sample_init(
+    await ProxmoxSandboxEnvironment.task_init(task_name=task_name, config=None)
+    envs_dict = await ProxmoxSandboxEnvironment.sample_init(
         task_name=task_name,
         config=config,
         metadata={},

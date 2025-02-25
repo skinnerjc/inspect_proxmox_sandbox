@@ -6,13 +6,13 @@ from inspect_ai.solver import basic_agent
 from inspect_ai.tool import Tool, bash, tool
 from inspect_ai.util import sandbox, store
 
-from vmsandbox.inspect.schema import (
+from proxmoxsandbox.inspect.schema import (
     VmConfig,
     VmSourceConfig,
 )
-from vmsandbox.inspect.vm_sandbox_environment import (
-    VmSandboxEnvironment,
-    VmSandboxEnvironmentConfig,
+from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
+    ProxmoxSandboxEnvironment,
+    ProxmoxSandboxEnvironmentConfig,
 )
 
 example_dataset = [
@@ -40,7 +40,7 @@ def create_snapshot() -> Tool:
         try:
             await (
                 sandbox()
-                .as_type(VmSandboxEnvironment)
+                .as_type(ProxmoxSandboxEnvironment)
                 .create_snapshot(f"inspect{new_snapshot_id}")
             )
         except TypeError as e:
@@ -65,7 +65,7 @@ def rollback_to_snapshot() -> Tool:
         try:
             await (
                 sandbox()
-                .as_type(VmSandboxEnvironment)
+                .as_type(ProxmoxSandboxEnvironment)
                 .restore_snapshot(f"inspect{snapshot_id}")
             )
         except TypeError as e:
@@ -89,7 +89,7 @@ def try_snapshots() -> Task:
         scorer=includes(),
         sandbox=(
             "vm",
-            VmSandboxEnvironmentConfig(
+            ProxmoxSandboxEnvironmentConfig(
                 vms_config=(
                     VmConfig(vm_source_config=VmSourceConfig(built_in="ubuntu24.04")),
                 ),

@@ -6,11 +6,11 @@ from typing import Dict, get_args
 import tenacity
 from inspect_ai.util import trace_action
 
-from vmsandbox.inspect.proxmox.agent_commands import AgentCommands
-from vmsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from vmsandbox.inspect.proxmox.infra_commands import InfraCommands
-from vmsandbox.inspect.proxmox.task_wrapper import TaskWrapper
-from vmsandbox.inspect.schema import (
+from proxmoxsandbox.inspect.proxmox.agent_commands import AgentCommands
+from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
+from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
+from proxmoxsandbox.inspect.schema import (
     DhcpRange,
     SdnConfig,
     SubnetConfig,

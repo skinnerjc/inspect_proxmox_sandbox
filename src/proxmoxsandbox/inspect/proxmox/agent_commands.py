@@ -8,7 +8,7 @@ from inspect_ai.util import (
     trace_action,
 )
 
-from vmsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 
 
 class AgentCommands:

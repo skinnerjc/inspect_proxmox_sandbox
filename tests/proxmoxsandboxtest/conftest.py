@@ -1,16 +1,15 @@
 # tests/conftest.py
-import os
 from typing import AsyncGenerator
 
 import pytest
 
-from vmsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from vmsandbox.inspect.vm_sandbox_environment import VmSandboxEnvironmentConfig
+from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox_sandbox_environment import ProxmoxSandboxEnvironmentConfig
 
 
 @pytest.fixture
 async def proxmox_api(
-    sandbox_env_config: VmSandboxEnvironmentConfig,
+    sandbox_env_config: ProxmoxSandboxEnvironmentConfig,
 ) -> AsyncGenerator[AsyncProxmoxAPI, None]:
     """Provides configured AsyncProxmoxAPI instance"""
     yield AsyncProxmoxAPI(
@@ -22,5 +21,5 @@ async def proxmox_api(
 
 
 @pytest.fixture
-async def sandbox_env_config() -> VmSandboxEnvironmentConfig:
-    return VmSandboxEnvironmentConfig()
+async def sandbox_env_config() -> ProxmoxSandboxEnvironmentConfig:
+    return ProxmoxSandboxEnvironmentConfig()

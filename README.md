@@ -1,4 +1,4 @@
-# Inspect VM Sandbox
+# Inspect Proxmox Sandbox
 
 ## Purpose
 
@@ -45,8 +45,8 @@ Most tools use only the first sandbox, so you should list the one you want the a
 
 ```python
 sandbox=(
-    "vm",
-    VmSandboxEnvironmentConfig(
+    "proxmox",
+    ProxmoxSandboxEnvironmentConfig(
         # These config items will be taken from environment variables, if not specified here
         host="[hostname of proxmox server]",
         port="[port e.g. 8006],
@@ -129,7 +129,9 @@ including the running processes. See src/vmsandbox/experimental/snapshots.py for
 ## Feature Roadmap
 
 - Proxmox server health and config check
+- More config options for VMs (vCPU, RAM, etc)
 - Normalize having a second pfSense VM as the default route for networking
+- Firewall off the SDN from the Proxmox server and from other SDNs
 - Support existing_vm_template_tag VM source
 - Support existing_ova_name VM source
 - Add more built-in VMs (Debian, Kali)

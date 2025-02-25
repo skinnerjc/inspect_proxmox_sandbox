@@ -6,9 +6,9 @@ from typing import Dict, List, Tuple
 import tenacity
 from inspect_ai.util import trace_action
 
-from vmsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from vmsandbox.inspect.proxmox.task_wrapper import TaskWrapper
-from vmsandbox.inspect.schema import (
+from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
+from proxmoxsandbox.inspect.schema import (
     SdnConfig,
     VmConfig,
 )

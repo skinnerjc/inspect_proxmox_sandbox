@@ -5,7 +5,7 @@ from typing import Awaitable, Callable
 
 import tenacity
 
-from vmsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 
 
 class TaskWrapper(abc.ABC):

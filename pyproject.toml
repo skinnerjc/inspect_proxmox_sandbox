@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.entry-points."inspect_ai"]
-"vm-sandbox" = "vmsandbox.inspect.vm_sandbox_environment"
+"proxmox-sandbox" = "proxmoxsandbox.inspect.proxmox_sandbox_environment"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -28,7 +28,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/vmsandbox"]
+packages = ["src/proxmoxsandbox"]
 
 [tool.hatch.metadata]
 allow-direct-references = true

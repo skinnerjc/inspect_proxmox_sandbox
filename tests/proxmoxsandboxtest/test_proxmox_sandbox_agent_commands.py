@@ -3,7 +3,7 @@ from typing import List
 
 from inspect_ai.util._sandbox.self_check import self_check
 
-from vmsandboxtest.vmsandbox_utils import setup_requests_logging, setup_sandbox
+from proxmoxsandboxtest.proxmox_sandbox_utils import setup_requests_logging, setup_sandbox
 
 
 async def test_exec_10mb_limit(sandbox_env_config) -> None:

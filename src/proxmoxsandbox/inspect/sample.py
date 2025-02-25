@@ -6,9 +6,9 @@ from inspect_ai.scorer import exact
 from inspect_ai.solver import chain, generate, use_tools
 from inspect_ai.tool import bash
 
-from vmsandbox.inspect.schema import VmConfig
-from vmsandbox.inspect.vm_sandbox_environment import (
-    VmSandboxEnvironmentConfig,
+from proxmoxsandbox.inspect.schema import VmConfig
+from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
+    ProxmoxSandboxEnvironmentConfig,
 )
 
 
@@ -25,7 +25,7 @@ def hello_world():
         scorer=exact(),
         sandbox=(
             "vm",
-            VmSandboxEnvironmentConfig(
+            ProxmoxSandboxEnvironmentConfig(
                 host="localhost",
                 port=11002,
                 user="root",

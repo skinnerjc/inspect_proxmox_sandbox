@@ -21,14 +21,14 @@ from inspect_ai.util import (
     trace_action,
 )
 
-from vmsandbox.inspect.proxmox.agent_commands import AgentCommands
-from vmsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from vmsandbox.inspect.proxmox.infra_commands import InfraCommands
-from vmsandbox.inspect.proxmox.built_in_vm import BuiltInVM
-from vmsandbox.inspect.proxmox.task_wrapper import TaskWrapper
-from vmsandbox.inspect.schema import (
+from proxmoxsandbox.inspect.proxmox.agent_commands import AgentCommands
+from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
+from proxmoxsandbox.inspect.proxmox.built_in_vm import BuiltInVM
+from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
+from proxmoxsandbox.inspect.schema import (
     SdnConfig,
-    VmSandboxEnvironmentConfig,
+    ProxmoxSandboxEnvironmentConfig,
     simple_sdn_config,
 )
 
@@ -37,10 +37,10 @@ NODE_NAME = "proxmox"
 
 
 @sandboxenv(name="vm")
-class VmSandboxEnvironment(SandboxEnvironment):
+class ProxmoxSandboxEnvironment(SandboxEnvironment):
     logger = getLogger(__name__)
 
-    TRACE_NAME = "vm_sandbox_environment"
+    TRACE_NAME = "proxmox_sandbox_environment"
 
     infra_commands: InfraCommands
     agent_commands: AgentCommands
@@ -137,8 +137,8 @@ class VmSandboxEnvironment(SandboxEnvironment):
         config: SandboxEnvironmentConfigType | None,
         metadata: dict[str, str],
     ) -> dict[str, SandboxEnvironment]:
-        if not isinstance(config, VmSandboxEnvironmentConfig):
-            raise ValueError("config must be a VmSandboxEnvironmentConfig")
+        if not isinstance(config, ProxmoxSandboxEnvironmentConfig):
+            raise ValueError("config must be a ProxmoxSandboxEnvironmentConfig")
 
         proxmox = AsyncProxmoxAPI(
             host=f"{config.host}:{config.port}",
@@ -204,7 +204,7 @@ class VmSandboxEnvironment(SandboxEnvironment):
         found_default = False
 
         for idx, vm_config_and_id in enumerate(vm_configs_with_ids):
-            vm_sandbox_environment = VmSandboxEnvironment(
+            vm_sandbox_environment = ProxmoxSandboxEnvironment(
                 proxmox=proxmox,
                 sdn_config=config.sdn_config,
                 vm_id=vm_config_and_id[0],
@@ -242,9 +242,9 @@ class VmSandboxEnvironment(SandboxEnvironment):
         environments: dict[str, SandboxEnvironment],
         interrupted: bool,
     ) -> None:
-        any_vm_sandbox_environment: VmSandboxEnvironment | None = None
+        any_vm_sandbox_environment: ProxmoxSandboxEnvironment | None = None
         for env in environments.values():
-            if isinstance(env, VmSandboxEnvironment):
+            if isinstance(env, ProxmoxSandboxEnvironment):
                 # we only need a single VM sandbox to have enough information to tear them all down
                 any_vm_sandbox_environment = env
 

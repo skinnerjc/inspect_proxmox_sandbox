@@ -1,8 +1,8 @@
 import random
 
-from vmsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from vmsandbox.inspect.proxmox.infra_commands import InfraCommands
-from vmsandbox.inspect.schema import (
+from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
+from proxmoxsandbox.inspect.schema import (
     VmConfig,
     VmSourceConfig,
     simple_sdn_config,

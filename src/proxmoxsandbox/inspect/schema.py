@@ -96,7 +96,7 @@ class VmConfig(BaseModel, frozen=True):
 def get_env(env_var: str) -> str:
     return os.environ[env_var]
 
-class VmSandboxEnvironmentConfig(BaseModel, frozen=True):
+class ProxmoxSandboxEnvironmentConfig(BaseModel, frozen=True):
     host: str = Field(default_factory=lambda: get_env("PROXMOX_HOST"))
     port: int = Field(default_factory=lambda: int(get_env("PROXMOX_PORT")))
     user: str = Field(default_factory=lambda: get_env("PROXMOX_USER"))

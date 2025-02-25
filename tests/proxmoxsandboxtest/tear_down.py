@@ -1,5 +1,5 @@
-from vmsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from vmsandbox.inspect.proxmox.infra_commands import InfraCommands
+from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
 
 
 # not actually a test; just a convenience for tearing down leftover stuff when testing
