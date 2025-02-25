@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "inspect-vm-sandbox"
+name = "inspect-proxmox-sandbox"
 version = "0.1.0"
 description = ""
 authors = ["UK AI Safety Institute"]
