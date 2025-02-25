@@ -270,31 +270,43 @@ class InfraCommands(abc.ABC):
         return relevant_subnet_cidrs
 
     async def tear_down_sdn_zone_and_vnet(self, sdn_zone_id: str) -> None:
-        all_vnets = await self.async_proxmox.request("GET", "/cluster/sdn/vnets")
-        relevant_vnets = list(vnet for vnet in all_vnets if vnet["zone"] == sdn_zone_id)
-        for vnet_details in relevant_vnets:
-            vnet = vnet_details["vnet"]
-            with trace_action(self.logger, self.TRACE_NAME, f"get subnets for {vnet=}"):
-                subnets = await self.async_proxmox.request(
-                    "GET", f"/cluster/sdn/vnets/{vnet}/subnets"
-                )
-            for subnet_details in subnets:
-                subnet_id = subnet_details["id"]
+        await self.tear_down_sdn_zones_and_vnets([sdn_zone_id])
+
+    async def tear_down_sdn_zones_and_vnets(self, sdn_zone_ids: List[str]) -> None:
+        for sdn_zone_id in sdn_zone_ids:
+            all_vnets = await self.async_proxmox.request("GET", "/cluster/sdn/vnets")
+            relevant_vnets = list(
+                vnet for vnet in all_vnets if vnet["zone"] == sdn_zone_id
+            )
+            for vnet_details in relevant_vnets:
+                vnet = vnet_details["vnet"]
                 with trace_action(
-                    self.logger, self.TRACE_NAME, f"delete subnet {subnet_id=}"
+                    self.logger, self.TRACE_NAME, f"get subnets for {vnet=}"
                 ):
+                    subnets = await self.async_proxmox.request(
+                        "GET", f"/cluster/sdn/vnets/{vnet}/subnets"
+                    )
+                for subnet_details in subnets:
+                    subnet_id = subnet_details["id"]
+                    with trace_action(
+                        self.logger, self.TRACE_NAME, f"delete subnet {subnet_id=}"
+                    ):
+                        await self.async_proxmox.request(
+                            "DELETE",
+                            f"/cluster/sdn/vnets/{vnet}/subnets/{subnet_id}",
+                        )
+
+                with trace_action(self.logger, self.TRACE_NAME, f"delete vnet {vnet=}"):
                     await self.async_proxmox.request(
-                        "DELETE",
-                        f"/cluster/sdn/vnets/{vnet}/subnets/{subnet_id}",
+                        "DELETE", f"/cluster/sdn/vnets/{vnet}"
                     )
 
-            with trace_action(self.logger, self.TRACE_NAME, f"delete vnet {vnet=}"):
-                await self.async_proxmox.request("DELETE", f"/cluster/sdn/vnets/{vnet}")
-
-        with trace_action(self.logger, self.TRACE_NAME, f"delete zone {sdn_zone_id=}"):
-            await self.async_proxmox.request(
-                "DELETE", f"/cluster/sdn/zones/{sdn_zone_id}"
-            )
+            with trace_action(
+                self.logger, self.TRACE_NAME, f"delete zone {sdn_zone_id=}"
+            ):
+                await self.async_proxmox.request(
+                    "DELETE", f"/cluster/sdn/zones/{sdn_zone_id}"
+                )
 
         await self.do_update_all_sdn()
 
