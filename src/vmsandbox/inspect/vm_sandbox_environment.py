@@ -5,7 +5,7 @@ import shlex
 import time
 from logging import getLogger
 from pathlib import Path
-from random import randint
+from random import randint, shuffle
 from typing import Dict, Generator, List, Tuple, Union
 
 import tenacity
@@ -24,7 +24,16 @@ from inspect_ai.util import (
 from vmsandbox.inspect.proxmox.agent_commands import AgentCommands
 from vmsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from vmsandbox.inspect.proxmox.infra_commands import InfraCommands
-from vmsandbox.inspect.schema import SdnConfig, VmSandboxEnvironmentConfig
+from vmsandbox.inspect.proxmox.built_in_vm import BuiltInVM
+from vmsandbox.inspect.proxmox.task_wrapper import TaskWrapper
+from vmsandbox.inspect.schema import (
+    SdnConfig,
+    VmSandboxEnvironmentConfig,
+    simple_sdn_config,
+)
+
+# node name is hardcoded, could make it configurable
+NODE_NAME = "proxmox"
 
 
 @sandboxenv(name="vm")
@@ -35,6 +44,8 @@ class VmSandboxEnvironment(SandboxEnvironment):
 
     infra_commands: InfraCommands
     agent_commands: AgentCommands
+    task_wrapper: TaskWrapper
+    built_in_vm: BuiltInVM
     sdn_config: SdnConfig | None
     vm_id: int
     all_vm_ids: Tuple[int, ...]
@@ -48,8 +59,12 @@ class VmSandboxEnvironment(SandboxEnvironment):
         all_vm_ids: Tuple[int, ...],
         sdn_zone_id: str | None,
     ):
-        self.infra_commands = InfraCommands(async_proxmox=proxmox)
-        self.agent_commands = AgentCommands(async_proxmox=proxmox)
+        self.infra_commands = InfraCommands(async_proxmox=proxmox, node=NODE_NAME)
+        self.agent_commands = AgentCommands(async_proxmox=proxmox, node=NODE_NAME)
+        self.built_in_vm = BuiltInVM(
+            async_proxmox=proxmox, infra_commands=self.infra_commands, node=NODE_NAME
+        )
+        self.task_wrapper = TaskWrapper(async_proxmox=proxmox)
         self.sdn_config = sdn_config
         self.vm_id = vm_id
         self.all_vm_ids = all_vm_ids
@@ -132,17 +147,52 @@ class VmSandboxEnvironment(SandboxEnvironment):
             verify_ssl=False,
         )
 
-        infra_commands = InfraCommands(async_proxmox=proxmox)
+        infra_commands = InfraCommands(async_proxmox=proxmox, node=NODE_NAME)
 
         # 8 characters max unfortunately; we save two at the end to distinguish vnet/SDN objects
         task_name_start = re.sub("[^a-zA-Z0-9]", "x", task_name[:3].lower())
         proxmox_ids_start = f"{task_name_start}{randint(0, 999):03d}"
         # TODO: could check here for collisions
+
+        sdn_config = config.sdn_config
+        if sdn_config is None:
+            try_third_octets = list(range(2, 253))
+            # Deliberately randomize the IP address range you get if you don't specify one.
+            # This is to avoid brittle evals
+            shuffle(try_third_octets)
+            for third_octet in try_third_octets:
+                try_sdn_config = simple_sdn_config(third_octet)
+                try:
+                    await infra_commands.check_cidrs(sdn_config=try_sdn_config)
+                    sdn_config = try_sdn_config
+                    break
+                except ValueError as ex:
+                    continue
+        if sdn_config is None:
+            raise ValueError("Could not find a suitable IP range for the SDN")
+        # There is obviously a race condition here. Another eval could sneak in and create a clashing
+        # IP range.
+        # We could use a 10.*/24 range instead, which would give us many more ranges and
+        # reduce the chance of a collision.
+
         async with concurrency("proxmox", 1):
+            built_in_vm = BuiltInVM(
+                async_proxmox=proxmox, infra_commands=infra_commands, node=NODE_NAME
+            )
+            og_known_builtins = await built_in_vm.known_builtins()
+            for vm_config in config.vms_config:
+                if vm_config.vm_source_config.built_in is not None:
+                    await built_in_vm.ensure_exists(
+                        vm_config.vm_source_config, og_known_builtins
+                    )
+
+            known_builtins = await built_in_vm.known_builtins()
+
             vm_configs_with_ids, sdn_zone_id = await infra_commands.create_sdn_and_vms(
                 proxmox_ids_start,
-                sdn_config=config.sdn_config,
+                sdn_config=sdn_config,
                 vms_config=config.vms_config,
+                known_builtins=known_builtins,
             )
 
         sandboxes: Dict[str, SandboxEnvironment] = {}
@@ -207,7 +257,7 @@ class VmSandboxEnvironment(SandboxEnvironment):
             async with concurrency("proxmox", 1):
                 for vm_id in any_vm_sandbox_environment.all_vm_ids:
                     await any_vm_sandbox_environment.infra_commands.destroy_vm(
-                        node="proxmox", vm_id=vm_id
+                        vm_id=vm_id
                     )
                 await any_vm_sandbox_environment.infra_commands.tear_down_sdn_zone_and_vnet(
                     sdn_zone_id=any_vm_sandbox_environment.sdn_zone_id
@@ -253,7 +303,7 @@ class VmSandboxEnvironment(SandboxEnvironment):
         async def wait_for_exec(vm_id: int, exec_response_pid: int) -> bool:
             return (
                 await self.agent_commands.get_agent_exec_status(
-                    node="proxmox", vm_id=vm_id, pid=exec_response_pid
+                    vm_id=vm_id, pid=exec_response_pid
                 )
             )["exited"] == 1
 
@@ -269,7 +319,7 @@ class VmSandboxEnvironment(SandboxEnvironment):
         await self._write_file_only(f"{tmp_start}script.sh", script)
 
         exec_post_response = await self.agent_commands.exec_command(
-            node="proxmox", vm_id=self.vm_id, command=["sh", f"{tmp_start}script.sh"]
+            vm_id=self.vm_id, command=["sh", f"{tmp_start}script.sh"]
         )
 
         exec_response_pid = exec_post_response["pid"]
@@ -286,7 +336,6 @@ class VmSandboxEnvironment(SandboxEnvironment):
         # TODO: consider reading all files at once?
         stdout = (
             await self.agent_commands.read_file_or_blank(
-                node="proxmox",
                 vm_id=self.vm_id,
                 filepath=f"{tmp_start}script.stdout",
                 max_size=SandboxEnvironmentLimits.MAX_EXEC_OUTPUT_SIZE,
@@ -294,7 +343,6 @@ class VmSandboxEnvironment(SandboxEnvironment):
         )["content"]
         stderr = (
             await self.agent_commands.read_file_or_blank(
-                node="proxmox",
                 vm_id=self.vm_id,
                 filepath=f"{tmp_start}script.stderr",
                 max_size=SandboxEnvironmentLimits.MAX_EXEC_OUTPUT_SIZE,
@@ -310,7 +358,6 @@ class VmSandboxEnvironment(SandboxEnvironment):
 
         # cleanup - we don't need to wait for the result of this
         await self.agent_commands.exec_command(
-            node="proxmox",
             vm_id=self.vm_id,
             command=["sh", "-c", f"rm -f {tmp_start}*"],
         )
@@ -337,7 +384,6 @@ class VmSandboxEnvironment(SandboxEnvironment):
     async def read_return_code(self, tmp_start):
         returncode_string = (
             await self.agent_commands.read_file_or_blank(
-                node="proxmox",
                 vm_id=self.vm_id,
                 filepath=f"{tmp_start}script.returncode",
                 max_size=SandboxEnvironmentLimits.MAX_EXEC_OUTPUT_SIZE,
@@ -353,7 +399,6 @@ class VmSandboxEnvironment(SandboxEnvironment):
             raise ValueError("VM ID is not set")
         try:
             await self.agent_commands.write_file(
-                node="proxmox",
                 vm_id=self.vm_id,
                 content=contents
                 if isinstance(contents, bytes)
@@ -429,7 +474,6 @@ class VmSandboxEnvironment(SandboxEnvironment):
         # read from proxmox API is limited to 16777216 bytes
         try:
             read_get_response = await self.agent_commands.read_file(
-                node="proxmox",
                 vm_id=self.vm_id,
                 filepath=file,
                 max_size=min(SandboxEnvironmentLimits.MAX_READ_FILE_SIZE, 16777216),
@@ -470,18 +514,16 @@ class VmSandboxEnvironment(SandboxEnvironment):
     async def create_snapshot(self, snapshot_name: str) -> None:
         async def snapshotter() -> None:
             await self.agent_commands.create_snapshot(
-                node="proxmox", vm_id=self.vm_id, snapshot_name=snapshot_name
+                vm_id=self.vm_id, snapshot_name=snapshot_name
             )
 
-        await self.infra_commands.do_action_and_wait_for_tasks(snapshotter)
+        await self.task_wrapper.do_action_and_wait_for_tasks(snapshotter)
 
     async def restore_snapshot(self, snapshot_name: str) -> None:
         async def snapshotter() -> None:
             await self.agent_commands.rollback_to_snapshot(
-                node="proxmox", vm_id=self.vm_id, snapshot_name=snapshot_name
+                vm_id=self.vm_id, snapshot_name=snapshot_name
             )
 
-        await self.infra_commands.do_action_and_wait_for_tasks(snapshotter)
-        await self.infra_commands.await_vm(
-            node="proxmox", vm_id=self.vm_id, is_sandbox=True
-        )
+        await self.task_wrapper.do_action_and_wait_for_tasks(snapshotter)
+        await self.infra_commands.await_vm(vm_id=self.vm_id, is_sandbox=True)

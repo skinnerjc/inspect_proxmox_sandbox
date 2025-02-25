@@ -19,7 +19,7 @@ pycdlib = "^1.14.0"
 
 [tool.poetry.group.dev.dependencies]
 aisitools = {git = "ssh://git@github.com/AI-Safety-Institute/aisi-inspect-tools"}
-inspect-ai =  {git = "ssh://git@github.com/UKGovernmentBEIS/inspect_ai", branch="main"}
+inspect-ai =  {git = "ssh://git@github.com/UKGovernmentBEIS/inspect_ai", branch="assert_messages"}
 mypy = "^1.14.1"
 pytest = "^8.3.4"
 pytest-asyncio = "^0.25.3"

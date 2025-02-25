@@ -1,4 +1,5 @@
 import logging
+from typing import Dict, Tuple
 
 from vmsandbox.inspect.vm_sandbox_environment import (
     VmSandboxEnvironment,
@@ -22,25 +23,15 @@ def setup_requests_logging() -> None:
     requests_log.setLevel(logging.DEBUG)
     requests_log.propagate = True
 
-
 async def setup_sandbox(
-    request,
-    vm_sandbox_environment_config: VmSandboxEnvironmentConfig = VmSandboxEnvironmentConfig(
-        host="localhost",
-        port=11002,
-        user="root",
-        user_realm="pam",
-        password="Password2.0",
-        vm_id=102,
-    ),
-):
-    task_name = f"{__name__}_{request.node.name}_vmsandbox"
-
+    task_name: str,
+    config: VmSandboxEnvironmentConfig
+) -> Tuple[str, Dict[str, VmSandboxEnvironment]]:
+    """Setup sandbox environment with given configuration"""
     await VmSandboxEnvironment.task_init(task_name=task_name, config=None)
     envs_dict = await VmSandboxEnvironment.sample_init(
         task_name=task_name,
-        config=vm_sandbox_environment_config,
+        config=config,
         metadata={},
     )
-
     return task_name, envs_dict

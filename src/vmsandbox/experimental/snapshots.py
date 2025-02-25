@@ -1,6 +1,3 @@
-import os
-from ipaddress import ip_address, ip_network
-
 from inspect_ai import Task, eval, task
 from inspect_ai.dataset import Sample
 from inspect_ai.model import ModelOutput, get_model
@@ -10,12 +7,8 @@ from inspect_ai.tool import Tool, bash, tool
 from inspect_ai.util import sandbox, store
 
 from vmsandbox.inspect.schema import (
-    DhcpRange,
-    SdnConfig,
-    SubnetConfig,
     VmConfig,
     VmSourceConfig,
-    VnetConfig,
 )
 from vmsandbox.inspect.vm_sandbox_environment import (
     VmSandboxEnvironment,
@@ -41,12 +34,17 @@ def create_snapshot() -> Tool:
         Returns:
           The number of snapshot, which can be used to rollback
         """
-        current_sandbox = sandbox()
-        if not isinstance(current_sandbox, VmSandboxEnvironment):
-            raise ValueError("This tool only works with VM sandboxes")
+
         current_snapshot_id = store().get("current_snapshot_id", 0)
         new_snapshot_id = current_snapshot_id + 1
-        await current_sandbox.create_snapshot(f"inspect{new_snapshot_id}")
+        try:
+            await (
+                sandbox()
+                .as_type(VmSandboxEnvironment)
+                .create_snapshot(f"inspect{new_snapshot_id}")
+            )
+        except TypeError as e:
+            raise ValueError("This tool only works with VM sandboxes") from e
         return new_snapshot_id
 
     return do_create_snapshot
@@ -63,10 +61,16 @@ def rollback_to_snapshot() -> Tool:
         Returns:
             bool: Always True
         """
-        current_sandbox = sandbox()
-        if not isinstance(current_sandbox, VmSandboxEnvironment):
-            raise ValueError("This tool only works with VM sandboxes")
-        await current_sandbox.restore_snapshot(f"inspect{snapshot_id}")
+
+        try:
+            await (
+                sandbox()
+                .as_type(VmSandboxEnvironment)
+                .restore_snapshot(f"inspect{snapshot_id}")
+            )
+        except TypeError as e:
+            raise ValueError("This tool only works with VM sandboxes") from e
+
         return True
 
     return do_rollback_to_snapshot
@@ -86,33 +90,8 @@ def try_snapshots() -> Task:
         sandbox=(
             "vm",
             VmSandboxEnvironmentConfig(
-                host="172.31.29.151",
-                port=11002,
-                user="root",
-                password=os.getenv("PROXMOX_PASSWORD"),
-                user_realm="pam",
                 vms_config=(
                     VmConfig(vm_source_config=VmSourceConfig(built_in="ubuntu24.04")),
-                ),
-                sdn_config=SdnConfig(
-                    vnet_configs=(
-                        VnetConfig(
-                            subnets=(
-                                SubnetConfig(
-                                    cidr=ip_network("192.168.20.0/24"),
-                                    gateway=ip_address("192.168.20.1"),
-                                    snat=True,
-                                    dhcp_ranges=(
-                                        DhcpRange(
-                                            start=ip_address("192.168.20.50"),
-                                            end=ip_address("192.168.20.100"),
-                                        ),
-                                    ),
-                                ),
-                            )
-                        ),
-                    ),
-                    use_pve_ipam_dnsnmasq=True,
                 ),
             ),
         ),

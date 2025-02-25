@@ -22,8 +22,16 @@ uv add git+ssh://git@github.com/AI-Safety-Institute/inspect-vm-sandbox.git
 
 ## Requirements
 
-You must be in RPv2. You will need to get a Proxmox host, port, user, and password from the platform team, 
-for use in the VmSandboxEnvironmentConfig.
+You must be in RPv2. You will need to get a Proxmox host, port, user, and password from the platform team.
+
+Create a .env file with the following
+
+PROXMOX_HOST=[ip/domain of host]
+PROXMOX_PORT=[port]
+PROXMOX_USER=[user, usually 'root']
+PROXMOX_REALM=pam
+PROXMOX_PASSWORD=[password]
+
 
 ## Configuring
 
@@ -38,11 +46,14 @@ Most tools use only the first sandbox, so you should list the one you want the a
 sandbox=(
     "vm",
     VmSandboxEnvironmentConfig(
+        # These config items will be taken from environment variables, if not specified here
         host="[hostname of proxmox server]",
         port="[port e.g. 8006],
         user="[username e.g. root, the proxmox default]",
         password="[password]",
         user_realm="[realm e.g. pam, the proxmox default]",
+        # End config from environment
+
         vms_config=(
             # A virtual machine that this provider will install and configure automatically.
             VmConfig(
@@ -64,8 +75,8 @@ sandbox=(
         ),
         # You will need a separate SDN per sample, or the VMs will be able to see each other
         # IP ranges *must* be distinct, unfortunately.
-        # If you don't care about any of this, just change the third octet (20) in the range to 
-        # something unique for each sample.
+        # If you don't care about any of this, you can leave this blank
+        # and you will get an IP range somewhere in 192.168.[2 - 253].0/24
         sdn_config=SdnConfig(
             vnet_configs=(
                 VnetConfig(
@@ -131,5 +142,6 @@ including the running processes. See src/vmsandbox/experimental/snapshots.py for
 
 - Split up files in proxmox module
 - Types, mypy, ruff, etc.
-- Tests are a mess and have hard-coded credentials
+- Test coverage is not great and it's not well documented how to get started running them
 - Error handling, especially surfacing the HTTP body text when the Proxmox server returns HTTP 500
+- Does not work with Inspect's post-hoc sandbox cleanup feature

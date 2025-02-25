@@ -1,7 +1,8 @@
+import os
 from ipaddress import ip_address, ip_network
 from typing import Literal, Tuple
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 from pydantic.networks import IPvAnyAddress, IPvAnyNetwork
 
 
@@ -28,6 +29,28 @@ class SdnConfig(BaseModel, frozen=True):
     vnet_configs: Tuple[VnetConfig, ...]
     # Set this to False if you want to use your own pfsense instance to handle IPAM (recommended)
     use_pve_ipam_dnsnmasq: bool = True
+
+
+def simple_sdn_config(third_octet: int = 16) -> SdnConfig:
+    return SdnConfig(
+        vnet_configs=(
+            VnetConfig(
+                subnets=(
+                    SubnetConfig(
+                        cidr=ip_network(f"192.168.{third_octet}.0/24"),
+                        gateway=ip_address(f"192.168.{third_octet}.1"),
+                        snat=True,
+                        dhcp_ranges=(
+                            DhcpRange(
+                                start=ip_address(f"192.168.{third_octet}.50"),
+                                end=ip_address(f"192.168.{third_octet}.100"),
+                            ),
+                        ),
+                    ),
+                )
+            ),
+        )
+    )
 
 
 class VmSourceConfig(BaseModel, frozen=True):
@@ -70,31 +93,19 @@ class VmConfig(BaseModel, frozen=True):
     is_sandbox: bool = True  # if so, the VM will show up as a sandbox. It must have the qemu-guest-agent installed
 
 
+def get_env(env_var: str) -> str:
+    return os.environ[env_var]
+
 class VmSandboxEnvironmentConfig(BaseModel, frozen=True):
-    host: str
-    port: int
-    user: str
-    user_realm: str
-    password: str
-    sdn_config: SdnConfig | None = SdnConfig(
-        vnet_configs=(
-            VnetConfig(
-                subnets=(
-                    SubnetConfig(
-                        cidr=ip_network("192.168.16.0/24"),
-                        gateway=ip_address("192.168.16.1"),
-                        snat=True,
-                        dhcp_ranges=(
-                            DhcpRange(
-                                start=ip_address("192.168.16.50"),
-                                end=ip_address("192.168.16.100"),
-                            ),
-                        ),
-                    ),
-                )
-            ),
-        )
-    )
+    host: str = Field(default_factory=lambda: get_env("PROXMOX_HOST"))
+    port: int = Field(default_factory=lambda: int(get_env("PROXMOX_PORT")))
+    user: str = Field(default_factory=lambda: get_env("PROXMOX_USER"))
+    user_realm: str = Field(default_factory=lambda: get_env("PROXMOX_REALM"))
+    password: str = Field(default_factory=lambda: get_env("PROXMOX_PASSWORD"))
+ 
+    # If not set, you will get a simple SDN with a single subnet. The IP addresses
+    # will not be predictable as it depends on what subnets already exist.
+    sdn_config: SdnConfig | None = None
     vms_config: Tuple[VmConfig, ...] = (
         VmConfig(vm_source_config=VmSourceConfig(built_in="ubuntu24.04")),
     )

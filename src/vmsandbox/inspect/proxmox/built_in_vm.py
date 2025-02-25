@@ -1,0 +1,404 @@
+import abc
+from ipaddress import ip_address, ip_network
+from logging import getLogger
+from typing import Dict, get_args
+
+import tenacity
+from inspect_ai.util import trace_action
+
+from vmsandbox.inspect.proxmox.agent_commands import AgentCommands
+from vmsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from vmsandbox.inspect.proxmox.infra_commands import InfraCommands
+from vmsandbox.inspect.proxmox.task_wrapper import TaskWrapper
+from vmsandbox.inspect.schema import (
+    DhcpRange,
+    SdnConfig,
+    SubnetConfig,
+    VmSourceConfig,
+    VnetConfig,
+)
+
+
+class BuiltInVM(abc.ABC):
+    logger = getLogger(__name__)
+
+    TRACE_NAME = "proxmox_built_in_vm"
+
+    async_proxmox: AsyncProxmoxAPI
+    infra_commands: InfraCommands
+    task_wrapper: TaskWrapper
+    node: str
+
+    def __init__(
+        self, async_proxmox: AsyncProxmoxAPI, infra_commands: InfraCommands, node: str
+    ):
+        self.async_proxmox = async_proxmox
+        self.task_wrapper = TaskWrapper(async_proxmox)
+        self.infra_commands = infra_commands
+        self.node = node
+
+    async def create_and_upload_cloudinit_iso(
+        self,
+        storage: str,
+        vm_id: int,
+        meta_data: str = """instance-id: proxmox\n""",  # TODO sort this
+        user_data: str = """#cloud-config
+package_update: true
+packages:
+  - qemu-guest-agent
+users:
+  - name: ubuntu
+    passwd: $6$rounds=4096$6ZjLzzWD9RGieC1y$8R5a/3Vwp3xr9ae9GVlCH0xGGofhp8xlKdddWRugOPhj3frUMr5g57x8t28JRFdS/scPl5AUwrTjah/BVe8dY1
+    lock_passwd: false
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: sudo
+
+runcmd:
+  - [ systemctl, enable, qemu-guest-agent ]
+  - [ systemctl, start, qemu-guest-agent ]
+""",
+        network_config: str = """network:
+  version: 2
+  ethernets:
+    default:
+      match:
+        name: e*
+      dhcp4: true
+      dhcp6: false
+""",
+    ) -> None:
+        """
+        Creates a cloud-init ISO and uploads it to Proxmox storage.
+
+        The ISO is created in memory and uploaded directly without writing to disk.
+        """
+        from io import BytesIO
+
+        import pycdlib
+
+        iso = pycdlib.PyCdlib()
+        iso.new(interchange_level=3, joliet=3, rock_ridge="1.12", vol_ident="CIDATA")
+
+        # Add cloud-init files to ISO
+        for filename, content in [
+            ("META_DATA", meta_data),
+            ("USER_DATA", user_data),
+            ("NETWORK", network_config),
+        ]:
+            if content:
+                content_bytes = content.encode("utf-8")
+                buffer = BytesIO(content_bytes)
+
+                iso_path = f"/{filename}"
+                proper_name = {
+                    "META_DATA": "meta-data",
+                    "USER_DATA": "user-data",
+                    "NETWORK": "network-config",
+                }[filename]
+
+                iso.add_fp(
+                    buffer,
+                    len(content_bytes),
+                    iso_path,
+                    joliet_path=f"/{proper_name}",
+                    rr_name=proper_name,
+                )
+
+        # Write ISO to memory
+        iso_buffer = BytesIO()
+        iso.write_fp(iso_buffer)
+        iso.close()
+
+        iso_data = iso_buffer.getvalue()
+        filename = f"vm-{vm_id}-cl00udinit.iso"
+
+        # Create the multipart form-data manually
+        import uuid
+
+        boundary = str(uuid.uuid4())
+
+        # Construct the multipart form-data payload
+        payload = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="content"\r\n\r\niso\r\n'
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="filename"; filename="{filename}"\r\n'
+            # f"Content-Type: application/x-iso9660-image\r\n"
+            f"Content-Length: {len(iso_data)}\r\n\r\n"
+        ).encode("us-ascii")
+
+        payload += iso_data + f"\r\n--{boundary}--\r\n".encode("us-ascii")
+
+        await self.async_proxmox.request(
+            "POST",
+            f"/nodes/{self.node}/storage/{storage}/upload",
+            content=payload,
+            content_type=f"multipart/form-data; boundary={boundary}",
+        )
+
+        @tenacity.retry(
+            wait=tenacity.wait_exponential(min=1, exp_base=1.3),
+            stop=tenacity.stop_after_delay(30),
+        )
+        async def attach_to_vm() -> None:
+            await self.async_proxmox.request(
+                "POST",
+                f"/nodes/{self.node}/qemu/{vm_id}/config",
+                json={"ide2": f"{storage}:iso/{filename},media=cdrom"},
+            )
+
+        await attach_to_vm()
+
+    async def known_builtins(self) -> Dict[str, int]:
+        existing_vms = await self.infra_commands.list_vms()
+
+        found_builtins = {}
+
+        for existing_vm_name in list(
+            get_args(get_args(VmSourceConfig.model_fields["built_in"].annotation)[0])
+        ):
+            for existing_vm in existing_vms:
+                if (
+                    "tags" in existing_vm
+                    and existing_vm["tags"] == f"inspect-{existing_vm_name}"
+                ):
+                    found_builtins[existing_vm_name] = existing_vm["vmid"]
+                    break
+        return found_builtins
+
+    async def ensure_exists(
+        self, vm_source_config: VmSourceConfig, known_buitins: Dict[str, int]
+    ) -> None:
+        if vm_source_config.built_in is None:
+            raise ValueError("built_in must be set")
+
+        if vm_source_config.built_in in known_buitins:
+            return
+
+        next_available_vm_id = await self.infra_commands.find_next_available_vm_id()
+
+        # TODO: allow storage to be configurable
+        storage = "local"
+
+        async def content_exists(content_name_end: str) -> bool:
+            existing_content = await self.async_proxmox.request(
+                "GET",
+                f"/nodes/{self.node}/storage/{storage}/content",
+            )
+            return any(
+                content["volid"] and content["volid"].endswith(content_name_end)
+                for content in existing_content
+            )
+
+        if await content_exists("/ubuntu24.04.ova"):
+            self.logger.debug(f"OVA {vm_source_config.built_in} already uploaded")
+        else:
+            with trace_action(
+                self.logger,
+                self.TRACE_NAME,
+                f"upload OVA {vm_source_config.built_in=} ",
+            ):
+                await self.async_proxmox.request(
+                    "POST",
+                    f"/nodes/{self.node}/storage/{storage}/download-url",
+                    json={
+                        "content": "import",
+                        "filename": "ubuntu24.04.ova",
+                        "url": "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.ova",
+                    },
+                )
+
+                @tenacity.retry(
+                    wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
+                    stop=tenacity.stop_after_delay(300),
+                )
+                async def upload_complete() -> None:
+                    if not await content_exists("/ubuntu24.04.ova"):
+                        raise ValueError("OVA upload not yet complete")
+
+                await upload_complete()
+
+        existing_zones = await self.infra_commands.list_sdn_zones()
+
+        exists_already = any(
+            zone_info["zone"] and zone_info["zone"] == "inspvmz"
+            for zone_info in existing_zones
+        )
+
+        if exists_already:
+            sdn_zone_id = "inspvmz"
+            vnet_id = "inspvmv0"
+        else:
+            _, vnet_id, _ = await self.infra_commands.create_sdn(
+                proxmox_ids_start="inspvm",
+                sdn_config=SdnConfig(
+                    vnet_configs=(
+                        VnetConfig(
+                            subnets=(
+                                SubnetConfig(
+                                    cidr=ip_network("192.168.99.0/24"),
+                                    gateway=ip_address("192.168.99.1"),
+                                    snat=True,
+                                    dhcp_ranges=(
+                                        DhcpRange(
+                                            start=ip_address("192.168.99.50"),
+                                            end=ip_address("192.168.99.100"),
+                                        ),
+                                    ),
+                                ),
+                            )
+                        ),
+                    )
+                ),
+            )
+
+        with trace_action(
+            self.logger,
+            self.TRACE_NAME,
+            f"create VM from OVA {next_available_vm_id=}",
+        ):
+            await self.async_proxmox.request(
+                "POST",
+                f"/nodes/{self.node}/qemu",
+                json={
+                    "vmid": next_available_vm_id,
+                    "name": f"inspect-{vm_source_config.built_in}",
+                    "node": self.node,
+                    "cpu": "host",
+                    "memory": 2048,
+                    "cores": 2,
+                    "ostype": "l26",
+                    "scsi0": "local-lvm:0,import-from=local:import/ubuntu24.04.ova/ubuntu-noble-24.04-cloudimg.vmdk,format=qcow2,cache=writeback",
+                    "scsihw": "virtio-scsi-single",
+                    "net0": f"virtio,bridge={vnet_id}",
+                    "start": False,
+                    "agent": "enabled=1",
+                },
+            )
+            await self.infra_commands.await_vm(
+                vm_id=next_available_vm_id,
+                is_sandbox=False,
+                status_for_wait="stopped",
+            )
+
+            # @tenacity.retry(
+            #     wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
+            #     stop=tenacity.stop_after_delay(120),
+            # )
+            # async def add_cloudinit_drive() -> None:
+            #     # this fails while the VM is creating. It would be better to wait until the VM is finished, but
+            #     # it seems the VM is always in the status "stopped" until creation is finished
+            #     await self.async_proxmox.request(
+            #         "POST",
+            #         f"/nodes/{self.node}/qemu/{next_available_vm_id}/config",
+            #         json={"ide3": "local-lvm:cloudinit"},
+            #     )
+
+            # await add_cloudinit_drive()
+
+            await self.create_and_upload_cloudinit_iso(
+                storage="local",
+                vm_id=next_available_vm_id,
+            )
+
+            # TODO: rather than these two retried calls, we should wait until the VM is definitely not locked, then go
+            @tenacity.retry(
+                wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
+                stop=tenacity.stop_after_delay(120),
+            )
+            async def update_tags() -> None:
+                await self.async_proxmox.request(
+                    "POST",
+                    f"/nodes/{self.node}/qemu/{next_available_vm_id}/config",
+                    json={
+                        "tags": f"inspect-{vm_source_config.built_in}",
+                    },
+                )
+
+            await update_tags()
+
+            await self.infra_commands.start_and_await(next_available_vm_id)
+
+            # now wait for cloud-init to finish
+
+            agent_commands = AgentCommands(self.async_proxmox, self.node)
+            res = await agent_commands.exec_command(
+                vm_id=next_available_vm_id,
+                command=["cloud-init", "status", "--wait"],
+            )
+
+            @tenacity.retry(
+                wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
+                stop=tenacity.stop_after_delay(300),
+                retry=tenacity.retry_if_result(lambda x: x is False),
+            )
+            async def wait_for_cloud_init() -> bool:
+                exec_status = await agent_commands.get_agent_exec_status(
+                    vm_id=next_available_vm_id, pid=res["pid"]
+                )
+                print(f"wait_for_exec; {exec_status=}")
+                if exec_status["exited"] == 1:
+                    print(f"wait_for_exec exited = 1; {exec_status=}")
+                    if exec_status["out-data"].strip() == "status: done":
+                        return True
+                    else:
+                        raise ValueError(
+                            f"cloud-init failed: {exec_status['out-data']}"
+                        )
+                else:
+                    return False
+
+            await wait_for_cloud_init()
+
+            res_sync = await agent_commands.exec_command(
+                vm_id=next_available_vm_id,
+                command=["sync"],
+            )
+
+            @tenacity.retry(
+                wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
+                stop=tenacity.stop_after_delay(300),
+                retry=tenacity.retry_if_result(lambda x: x is False),
+            )
+            async def wait_for_sync() -> bool:
+                exec_status = await agent_commands.get_agent_exec_status(
+                    vm_id=next_available_vm_id, pid=res_sync["pid"]
+                )
+                print(f"wait_for_exec; {exec_status=}")
+                return exec_status["exited"] == 1
+
+            await wait_for_sync()
+
+            await self.async_proxmox.request(
+                "POST",
+                f"/nodes/{self.node}/qemu/{next_available_vm_id}/status/shutdown",
+            )
+
+            await self.infra_commands.await_vm(
+                vm_id=next_available_vm_id,
+                is_sandbox=True,
+                status_for_wait="stopped",
+            )
+
+            await self.async_proxmox.request(
+                "POST",
+                f"/nodes/{self.node}/qemu/{next_available_vm_id}/template",
+            )
+
+            @tenacity.retry(
+                wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
+                stop=tenacity.stop_after_delay(300),
+                retry=tenacity.retry_if_result(lambda x: x is False),
+            )
+            async def is_template() -> bool:
+                current_config = await self.async_proxmox.request(
+                    "GET",
+                    f"/nodes/{self.node}/qemu/{next_available_vm_id}/config?current=1",
+                )
+                return current_config["template"] == 1
+
+            await is_template()
+
+            # TODO tear down SDN zone and vnet
+            # TODO remove CDROM drive
+            # TODO delete cloudinit ISO
