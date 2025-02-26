@@ -575,8 +575,8 @@ wheels = [
 
 [[package]]
 name = "inspect-ai"
-version = "0.3.71.dev14+g444469c3"
-source = { git = "ssh://git@github.com/UKGovernmentBEIS/inspect_ai?rev=main#444469c31bb510b91cf2f3b39272b595293c4daa" }
+version = "0.3.71.dev19+gf380985e"
+source = { git = "ssh://git@github.com/UKGovernmentBEIS/inspect_ai?rev=main#f380985eaa848ea79bad46943f5addc7f73eaf78" }
 dependencies = [
     { name = "aiohttp" },
     { name = "anyio" },

@@ -122,7 +122,7 @@ if __name__ == "__main__":
                 ModelOutput.for_tool_call(
                     model="mockllm/model",
                     tool_name="bash",
-                    tool_arguments={"cmd": "touch /flange"},
+                    tool_arguments={"cmd": "touch /football_result"},
                 ),
                 ModelOutput.for_tool_call(
                     model="mockllm/model",
