@@ -5,6 +5,9 @@ from inspect_ai.scorer import includes
 from inspect_ai.solver import basic_agent
 from inspect_ai.tool import Tool, bash, tool
 from inspect_ai.util import SandboxEnvironmentSpec, sandbox, store
+from inspect_ai.approval import ApprovalPolicy, human_approver, auto_approver
+
+
 
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
     ProxmoxSandboxEnvironment,
@@ -146,5 +149,9 @@ if __name__ == "__main__":
             ],
         ),
         log_level="DEBUG",
+        approval = [
+            ApprovalPolicy(human_approver(), ["create_snapshot", "rollback_to_snapshot", "submit"]),
+            ApprovalPolicy(auto_approver(), "*")
+        ]
         # sandbox_cleanup=False
     )

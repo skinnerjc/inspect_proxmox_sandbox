@@ -105,7 +105,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         user: str | None,
         timeout: int | None,
     ) -> str:
-        def generate() -> Generator[str, None, None]:             
+        def generate() -> Generator[str, None, None]:
             yield f"rm -f {tmp_start}script.stdout {tmp_start}script.stderr {tmp_start}script.returncode\n"
             if user is not None:
                 yield f"su -l {shlex.quote(user)} << 'EOF{tmp_start}EOF'\n"
@@ -255,20 +255,16 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
                 # we only need a single VM sandbox to have enough information to tear them all down
                 any_vm_sandbox_environment = env
 
-        if (
-            any_vm_sandbox_environment is not None
-            and any_vm_sandbox_environment.sdn_config is not None
-        ):
-            if any_vm_sandbox_environment.sdn_zone_id is None:
-                raise ValueError("SDN zone ID is not set even though sdn_config was!")
+        if any_vm_sandbox_environment is not None:
             async with concurrency("proxmox", 1):
                 for vm_id in any_vm_sandbox_environment.all_vm_ids:
                     await any_vm_sandbox_environment.infra_commands.destroy_vm(
                         vm_id=vm_id
                     )
-                await any_vm_sandbox_environment.infra_commands.tear_down_sdn_zone_and_vnet(
-                    sdn_zone_id=any_vm_sandbox_environment.sdn_zone_id
-                )
+                if any_vm_sandbox_environment.sdn_zone_id is not None:
+                    await any_vm_sandbox_environment.infra_commands.tear_down_sdn_zone_and_vnet(
+                        sdn_zone_id=any_vm_sandbox_environment.sdn_zone_id
+                    )
         return None
 
     @classmethod
@@ -308,8 +304,8 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             # TODO check return code of exec - even if the command failed
             # it should always be timeout or success
             #
-            # Note: get_agent_exec_status can only be called once 
-            # per PID after the process is complete. 
+            # Note: get_agent_exec_status can only be called once
+            # per PID after the process is complete.
             # Do not, for example, try to debug the value of the get_agent_exec_status
             # call. It will break the running code in this loop.
             exec_status = await self.agent_commands.get_agent_exec_status(
@@ -362,7 +358,6 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
                 stderr=stderr,
             )
         else:
-
             # TODO: consider reading all files at once?
             stdout = (
                 await self.agent_commands.read_file_or_blank(
