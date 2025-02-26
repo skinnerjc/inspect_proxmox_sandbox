@@ -148,7 +148,7 @@ if __name__ == "__main__":
                 ),
             ],
         ),
-        log_level="DEBUG",
+        log_level="trace",
         approval = [
             ApprovalPolicy(human_approver(), ["create_snapshot", "rollback_to_snapshot", "submit"]),
             ApprovalPolicy(auto_approver(), "*")
