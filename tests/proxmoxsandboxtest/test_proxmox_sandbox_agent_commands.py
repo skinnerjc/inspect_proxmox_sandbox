@@ -38,8 +38,6 @@ async def test_self_check(sandbox_env_config) -> None:
         "test_read_file_not_allowed",  # user is root, so this doesn't work
         "test_write_text_file_without_permissions",  # user is root, so this doesn't work
         "test_write_binary_file_without_permissions",  # user is root, so this doesn't work
-        "test_exec_as_user",  # user parameter not supported by proxmox API
-        "test_exec_as_nonexistent_user",  # user parameter not supported by proxmox API
     ]
 
     return await check_results_of_self_check(task_name, envs_dict, known_failures)
@@ -57,6 +55,7 @@ async def check_results_of_self_check(task_name, envs_dict, known_failures=[]):
         if failures:
             assert False, "\n".join(failures)
     finally:
+        pass
         await sandbox_env.sample_cleanup(
             task_name=task_name,
             config=None,

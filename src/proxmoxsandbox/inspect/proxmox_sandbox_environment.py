@@ -94,6 +94,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         return f"timeout -k 5s {timeout}s "
 
     # stolen from k8s sandbox
+    # TODO extract this to its own module and unit test it locally
     def _build_shell_script(
         self,
         tmp_start: str,
@@ -101,10 +102,14 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         stdin: str | bytes | None,
         cwd: str | None,
         env: dict[str, str],
+        user: str | None,
         timeout: int | None,
     ) -> str:
-        def generate() -> Generator[str, None, None]:
+        def generate() -> Generator[str, None, None]:             
             yield f"rm -f {tmp_start}script.stdout {tmp_start}script.stderr {tmp_start}script.returncode\n"
+            if user is not None:
+                yield f"su -l {shlex.quote(user)} << 'EOF{tmp_start}EOF'\n"
+            # The rest of the script gets quoted in a heredoc if we had to use su
             if cwd is not None:
                 yield f"cd {shlex.quote(cwd)} || exit $?\n"
             for key, value in env.items():
@@ -113,6 +118,8 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
                 yield self._pipe_user_input(stdin)
             yield f'{self._prefix_timeout(timeout)}{shlex.join(command)} > {tmp_start}script.stdout 2>{tmp_start}script.stderr\necho -n "$?" > {tmp_start}script.returncode\n'
             yield "sync\n"
+            if user is not None:
+                yield f"EOF{tmp_start}EOF\n"
 
         return "".join(generate())
 
@@ -290,9 +297,6 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         if self.vm_id is None:
             raise ValueError("VM ID is not set")
 
-        if user is not None:
-            raise NotImplementedError("The user parameter for exec() is not supported.")
-
         tmp_start = f"/tmp/{__name__}{time.time_ns()}_"
 
         @tenacity.retry(
@@ -300,12 +304,22 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             stop=tenacity.stop_after_delay(timeout if timeout is not None else 30),
             retry=tenacity.retry_if_result(lambda x: x is False),
         )
-        async def wait_for_exec(vm_id: int, exec_response_pid: int) -> bool:
-            return (
-                await self.agent_commands.get_agent_exec_status(
-                    vm_id=vm_id, pid=exec_response_pid
-                )
-            )["exited"] == 1
+        async def wait_for_exec(vm_id: int, exec_response_pid: int) -> bool | Dict:
+            # TODO check return code of exec - even if the command failed
+            # it should always be timeout or success
+            #
+            # Note: get_agent_exec_status can only be called once 
+            # per PID after the process is complete. 
+            # Do not, for example, try to debug the value of the get_agent_exec_status
+            # call. It will break the running code in this loop.
+            exec_status = await self.agent_commands.get_agent_exec_status(
+                vm_id=vm_id, pid=exec_response_pid
+            )
+
+            if exec_status["exited"] != 1:
+                return False
+            else:
+                return exec_status
 
         script = self._build_shell_script(
             tmp_start=tmp_start,
@@ -313,6 +327,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             stdin=input,
             cwd=cwd,
             env=env,
+            user=user,
             timeout=timeout,
         )
 
@@ -331,30 +346,45 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             self.TRACE_NAME,
             f"exec_command {self.vm_id=} {exec_response_pid=}",
         ):
-            await wait_for_exec(self.vm_id, exec_response_pid)
+            exec_status = await wait_for_exec(self.vm_id, exec_response_pid)
 
-        # TODO: consider reading all files at once?
-        stdout = (
-            await self.agent_commands.read_file_or_blank(
-                vm_id=self.vm_id,
-                filepath=f"{tmp_start}script.stdout",
-                max_size=SandboxEnvironmentLimits.MAX_EXEC_OUTPUT_SIZE,
+        if exec_status and isinstance(exec_status, Dict) and "err-data" in exec_status:
+            # Something went wrong with the wrapper script, not the actual command
+            # Possibly user not found. We'll return the error of the wrapper script,
+            # in case that's helpful
+            stdout = exec_status.get("out-data", "")
+            stderr = exec_status.get("err-data", "")
+            returncode = exec_status["exitcode"]
+            exec_response = ExecResult(
+                success=False,
+                returncode=returncode,
+                stdout=stdout,
+                stderr=stderr,
             )
-        )["content"]
-        stderr = (
-            await self.agent_commands.read_file_or_blank(
-                vm_id=self.vm_id,
-                filepath=f"{tmp_start}script.stderr",
-                max_size=SandboxEnvironmentLimits.MAX_EXEC_OUTPUT_SIZE,
+        else:
+
+            # TODO: consider reading all files at once?
+            stdout = (
+                await self.agent_commands.read_file_or_blank(
+                    vm_id=self.vm_id,
+                    filepath=f"{tmp_start}script.stdout",
+                    max_size=SandboxEnvironmentLimits.MAX_EXEC_OUTPUT_SIZE,
+                )
+            )["content"]
+            stderr = (
+                await self.agent_commands.read_file_or_blank(
+                    vm_id=self.vm_id,
+                    filepath=f"{tmp_start}script.stderr",
+                    max_size=SandboxEnvironmentLimits.MAX_EXEC_OUTPUT_SIZE,
+                )
+            )["content"]
+            returncode = await self.read_return_code(tmp_start)
+            exec_response = ExecResult(
+                success=returncode == 0,
+                returncode=returncode,
+                stdout=stdout,
+                stderr=stderr,
             )
-        )["content"]
-        returncode = await self.read_return_code(tmp_start)
-        exec_response = ExecResult(
-            success=returncode == 0,
-            returncode=returncode,
-            stdout=stdout,
-            stderr=stderr,
-        )
 
         # cleanup - we don't need to wait for the result of this
         await self.agent_commands.exec_command(
