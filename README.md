@@ -138,7 +138,7 @@ The built-in VM has username ubuntu, password Password2.0 (this will be changed 
 ## Snapshot
 
 QEMU, the virtualization library used by Proxmox, allows you to snapshot a running virtual machine, 
-including the running processes. See src/vmsandbox/experimental/snapshots.py for example tools that use this.
+including the running processes. See [snapshots.py](./src/proxmoxsandbox/experimental/snapshots.py) for example tools that use this.
 
 ## Feature Roadmap
 

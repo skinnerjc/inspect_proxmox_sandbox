@@ -1,10 +1,12 @@
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
 
+import pytest
 
 # not actually a test; just a convenience for tearing down leftover stuff when testing
+@pytest.mark.skip
 async def test_teardown(proxmox_api: AsyncProxmoxAPI):
-    test_zone_starts = ["san", "hel", "try", "tes", "ctf"]
+    test_zone_starts = ["san", "hel", "try", "tes", "ctf", "ins"]
     infra_commands = InfraCommands(async_proxmox=proxmox_api, node="proxmox")
 
 

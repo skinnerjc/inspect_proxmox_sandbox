@@ -575,8 +575,8 @@ wheels = [
 
 [[package]]
 name = "inspect-ai"
-version = "0.3.70.dev24+gb775f68a"
-source = { git = "ssh://git@github.com/UKGovernmentBEIS/inspect_ai?rev=assert_messages#b775f68ad53fa0aa843283947242725dffca2759" }
+version = "0.3.71.dev14+g444469c3"
+source = { git = "ssh://git@github.com/UKGovernmentBEIS/inspect_ai?rev=main#444469c31bb510b91cf2f3b39272b595293c4daa" }
 dependencies = [
     { name = "aiohttp" },
     { name = "anyio" },
@@ -651,7 +651,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "aisitools", git = "ssh://git@github.com/AI-Safety-Institute/aisi-inspect-tools" },
-    { name = "inspect-ai", git = "ssh://git@github.com/UKGovernmentBEIS/inspect_ai?rev=assert_messages" },
+    { name = "inspect-ai", git = "ssh://git@github.com/UKGovernmentBEIS/inspect_ai?rev=main" },
     { name = "mypy", specifier = ">=1.14.1" },
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "pytest-asyncio", specifier = ">=0.25.3" },
