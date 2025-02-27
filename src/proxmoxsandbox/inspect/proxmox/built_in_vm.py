@@ -106,6 +106,7 @@ users:
 runcmd:
   - [ systemctl, enable, qemu-guest-agent ]
   - [ systemctl, start, qemu-guest-agent ]
+  - [ systemctl, mask, systemd-networkd-wait-online.service ] # this causes startup delays and makes it annoying to debug network issues
 """,
         network_config: str = """network:
   version: 2
