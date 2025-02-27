@@ -52,7 +52,9 @@ class SdnCommands(abc.ABC):
         if overlaps := self.find_cidr_overlaps(existing_cidrs, new_cidrs):
             raise ValueError(f"Duplicate IP ranges found: {overlaps}")
 
-    async def create_sdn(self, proxmox_ids_start: str, sdn_config: SdnConfig):
+    async def create_sdn(
+        self, proxmox_ids_start: str, sdn_config: SdnConfig
+    ) -> Tuple[str, str, List[Tuple[str, str | None]]]:
         await self.check_cidrs(sdn_config)
 
         sdn_zone_id = f"{proxmox_ids_start}z"
@@ -79,7 +81,7 @@ class SdnCommands(abc.ABC):
                 f"Too many vnets; max 10, got {len(sdn_config.vnet_configs)}"
             )
 
-        vnet_aliases: Dict[str,str] = {}
+        vnet_aliases: List[Tuple[str, str| None]] = []
 
         for idx, vnet_config in enumerate(sdn_config.vnet_configs):
             vnet_id = f"{proxmox_ids_start}v{idx}"
@@ -88,7 +90,7 @@ class SdnCommands(abc.ABC):
                 vnet_json = {"vnet": vnet_id, "zone": sdn_zone_id}
                 if vnet_config.alias is not None:
                     vnet_json["alias"] = vnet_config.alias
-                    vnet_aliases[vnet_config.alias] = vnet_id
+                vnet_aliases.append((vnet_id, vnet_config.alias))
                 await self.async_proxmox.request(
                     "POST",
                     "/cluster/sdn/vnets",

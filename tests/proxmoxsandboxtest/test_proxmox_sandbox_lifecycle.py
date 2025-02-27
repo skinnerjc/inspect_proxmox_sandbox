@@ -11,15 +11,22 @@ from proxmoxsandboxtest.proxmox_sandbox_utils import (
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
 
 
-async def test_smoke(proxmox_api: AsyncProxmoxAPI) -> None:
+async def test_smoke() -> None:
     envs_dict = {}
-    sdn_config = await InfraCommands(proxmox_api, node="proxmox").generate_sdn_config(
-        alias="interesting alias with ( . _ 0 and -"
-    )
-    sandbox_env_config = ProxmoxSandboxEnvironmentConfig(sdn_config=sdn_config)
+    sandbox_env_config = ProxmoxSandboxEnvironmentConfig()
     try:
         task_name = "sandbox_test_smoketask"
         task_name, envs_dict = await setup_sandbox(task_name, sandbox_env_config)
+        uname_result = await envs_dict["default"].exec(
+            [
+                "uname",
+                "-a",
+            ]
+        )
+        assert uname_result.success, f"Failed to run uname: {uname_result=}"
+        assert "Ubuntu" in uname_result.stdout, (
+            f"Unexpected result of uname: {uname_result.stdout=}"
+        )
     finally:
         await ProxmoxSandboxEnvironment.sample_cleanup(
             task_name="unused",
@@ -68,5 +75,23 @@ async def test_multiple_sandboxes(sandbox_env_config) -> None:
             task_name="unused",
             config=sandbox_env_config,
             environments=sandboxes,
+            interrupted=False,
+        )
+
+
+async def test_multiple_vnets(proxmox_api: AsyncProxmoxAPI) -> None:
+    envs_dict = {}
+    sdn_config = await InfraCommands(proxmox_api, node="proxmox").generate_sdn_config(
+        alias="interesting alias with ( . _ 0 and -"
+    )
+    sandbox_env_config = ProxmoxSandboxEnvironmentConfig(sdn_config=sdn_config)
+    try:
+        task_name = "sandbox_test_smoketask"
+        task_name, envs_dict = await setup_sandbox(task_name, sandbox_env_config)
+    finally:
+        await ProxmoxSandboxEnvironment.sample_cleanup(
+            task_name="unused",
+            config=sandbox_env_config,
+            environments=envs_dict,
             interrupted=False,
         )

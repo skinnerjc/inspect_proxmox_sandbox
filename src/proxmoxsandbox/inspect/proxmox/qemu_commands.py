@@ -1,6 +1,6 @@
 import abc
 from logging import getLogger
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 
 import tenacity
 from inspect_ai.util import trace_action
@@ -127,11 +127,19 @@ class QemuCommands(abc.ABC):
             is_sandbox=True,
         )
 
+    def _convert_sdn_vnet_aliases(
+        self, sdn_vnet_aliases: List[Tuple[str, str | None]]
+    ) -> Dict[str, str]:
+        """Convert list of (vnet_id, vnet_alias) tuples to alias->id mapping, skipping None aliases."""
+        return {
+            alias: vnet_id for vnet_id, alias in sdn_vnet_aliases if alias is not None
+        }
+
     async def create_and_start_vm(
         self,
-        sdn_vnet_aliases: Dict[
-            str, str
-        ],  # a mapping of vnet aliases to vnet ids, for the particular sdn_zone_id
+        sdn_vnet_aliases: List[
+            Tuple[str, str | None]
+        ],  # a List tuples of [vnet ID, vnet alias], for the particular sdn_zone_id. The vnet alias may be None.
         vm_config: VmConfig,
         built_in_vm_ids: Dict[str, int],
     ) -> int:
@@ -189,15 +197,14 @@ class QemuCommands(abc.ABC):
                         "tags": ""
                     }  # remove the tag as that's only for the template
                     if len(vm_config.vnet_aliases) > 0:
+                        alias_mapping = self._convert_sdn_vnet_aliases(sdn_vnet_aliases)
                         for i, vnet_alias in enumerate(vm_config.vnet_aliases):
                             network_update_json[f"net{i}"] = (
-                                f"virtio,bridge={sdn_vnet_aliases[vnet_alias]}"
+                                f"virtio,bridge={alias_mapping[vnet_alias]}"
                             )
                     else:
-                            first_vnet_id = list(sdn_vnet_aliases.values())[0]
-                            network_update_json["net0"] = (
-                                f"virtio,bridge={first_vnet_id}"
-                            )                  
+                        first_vnet_id = sdn_vnet_aliases[0][0]
+                        network_update_json["net0"] = f"virtio,bridge={first_vnet_id}"
 
                     await self.async_proxmox.request(
                         "POST",
