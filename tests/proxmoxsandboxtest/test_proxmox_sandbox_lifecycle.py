@@ -1,3 +1,7 @@
+from proxmoxsandbox.inspect.schema import (
+    ProxmoxSandboxEnvironmentConfig,
+    simple_sdn_config,
+)
 from proxmoxsandboxtest.proxmox_sandbox_utils import (
     setup_requests_logging,
     setup_sandbox,
@@ -6,8 +10,11 @@ from proxmoxsandboxtest.proxmox_sandbox_utils import (
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
 
 
-async def test_smoke(sandbox_env_config) -> None:
+async def test_smoke() -> None:
     envs_dict = {}
+    sandbox_env_config = ProxmoxSandboxEnvironmentConfig(
+        sdn_config=simple_sdn_config(alias="interesting alias with ( . _ 0 and -")
+    )
     try:
         task_name = "sandbox_test_smoketask"
         task_name, envs_dict = await setup_sandbox(task_name, sandbox_env_config)
@@ -21,7 +28,7 @@ async def test_smoke(sandbox_env_config) -> None:
 
 
 async def test_multiple_sandboxes(sandbox_env_config) -> None:
-    # setup_requests_logging()
+    setup_requests_logging()
 
     sandboxes = {}
 
@@ -35,13 +42,25 @@ async def test_multiple_sandboxes(sandbox_env_config) -> None:
         task_name, envs_dict = await setup_sandbox(task_name, sandbox_env_config)
         sandboxes["second"] = envs_dict["default"]
 
-        second_ip = (await sandboxes["second"].exec(["bash", "-c", 'ip a | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v "127\.0" '])).stdout.splitlines()
+        second_ip = (
+            await sandboxes["second"].exec(
+                [
+                    "bash",
+                    "-c",
+                    'ip a | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v "127\.0" ',
+                ]
+            )
+        ).stdout.splitlines()
         if len(second_ip) != 1:
             raise Exception(f"Expected exactly one IP address, got {second_ip}")
-        
-        ping_result = await sandboxes["first"].exec(["ping", "-c", "1", second_ip[0]], timeout=3)
 
-        assert not ping_result.success, f"Should not be able to ping between sandboxes; {ping_result=}"
+        ping_result = await sandboxes["first"].exec(
+            ["ping", "-c", "1", second_ip[0]], timeout=3
+        )
+
+        assert not ping_result.success, (
+            f"Should not be able to ping between sandboxes; {ping_result=}"
+        )
     finally:
         await ProxmoxSandboxEnvironment.sample_cleanup(
             task_name="unused",

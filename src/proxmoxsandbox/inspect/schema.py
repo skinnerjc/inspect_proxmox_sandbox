@@ -1,6 +1,6 @@
 import os
 from ipaddress import ip_address, ip_network
-from typing import Literal, Tuple
+from typing import Annotated, Literal, Optional, Tuple
 
 from pydantic import BaseModel, Field, model_validator
 from pydantic.networks import IPvAnyAddress, IPvAnyNetwork
@@ -22,6 +22,10 @@ class SubnetConfig(BaseModel, frozen=True):
 
 
 class VnetConfig(BaseModel, frozen=True):
+    alias: Optional[
+        # original regex (?^i:[\(\)-_.\w\d\s]{0,256}) but that's not especially Python-compatible
+        Annotated[str, Field(pattern=r"[()-_.[a-z][A-Z][0-9]\s]{0,256}")]
+    ] = None
     subnets: Tuple[SubnetConfig, ...]
 
 
@@ -31,7 +35,7 @@ class SdnConfig(BaseModel, frozen=True):
     use_pve_ipam_dnsnmasq: bool = True
 
 
-def simple_sdn_config(third_octet: int = 16) -> SdnConfig:
+def simple_sdn_config(third_octet: int = 16, alias: Optional[str] = None) -> SdnConfig:
     return SdnConfig(
         vnet_configs=(
             VnetConfig(
@@ -47,7 +51,8 @@ def simple_sdn_config(third_octet: int = 16) -> SdnConfig:
                             ),
                         ),
                     ),
-                )
+                ),
+                alias=alias,
             ),
         )
     )
@@ -96,13 +101,14 @@ class VmConfig(BaseModel, frozen=True):
 def get_env(env_var: str) -> str:
     return os.environ[env_var]
 
+
 class ProxmoxSandboxEnvironmentConfig(BaseModel, frozen=True):
     host: str = Field(default_factory=lambda: get_env("PROXMOX_HOST"))
     port: int = Field(default_factory=lambda: int(get_env("PROXMOX_PORT")))
     user: str = Field(default_factory=lambda: get_env("PROXMOX_USER"))
     user_realm: str = Field(default_factory=lambda: get_env("PROXMOX_REALM"))
     password: str = Field(default_factory=lambda: get_env("PROXMOX_PASSWORD"))
- 
+
     # If not set, you will get a simple SDN with a single subnet. The IP addresses
     # will not be predictable as it depends on what subnets already exist.
     sdn_config: SdnConfig | None = None
