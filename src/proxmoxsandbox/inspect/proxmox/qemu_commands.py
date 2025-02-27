@@ -164,7 +164,7 @@ class QemuCommands(abc.ABC):
                     },
                 )
         elif vm_config.vm_source_config.built_in:
-            if vm_config.vm_source_config.built_in == "ubuntu24.04":
+            if vm_config.vm_source_config.built_in in ["ubuntu24.04", "kali"]:
                 vm_id_to_clone = built_in_vm_ids[vm_config.vm_source_config.built_in]
 
                 if vm_id_to_clone is None:
@@ -215,7 +215,10 @@ class QemuCommands(abc.ABC):
                 await self.task_wrapper.do_action_and_wait_for_tasks(update_network)
 
                 await self.start_and_await(new_vm_id)
-
+            else:
+                raise NotImplementedError(
+                    f"Not supported: {vm_config.vm_source_config.built_in=}"
+                )
         else:
             raise NotImplementedError(f"Not supported: {vm_config.vm_source_config=}")
         if new_vm_id is None:

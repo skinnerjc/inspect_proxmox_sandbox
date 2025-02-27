@@ -105,16 +105,52 @@ async def test_vnet_mix_alias_or_not(proxmox_api: AsyncProxmoxAPI) -> None:
         aliases=("alias1", "alias2", None)
     )
 
-    ubuntu_vm_1 = VmConfig(vm_source_config=VmSourceConfig(built_in="ubuntu24.04"), vnet_aliases=("alias1",))
-    ubuntu_vm_2 = VmConfig(vm_source_config=VmSourceConfig(built_in="ubuntu24.04"), vnet_aliases=("alias2",))
-    ubuntu_vm_3 = VmConfig(vm_source_config=VmSourceConfig(built_in="ubuntu24.04")) # should end up on alias1 due to no config
- 
-    sandbox_env_config = ProxmoxSandboxEnvironmentConfig(sdn_config=sdn_config, vms_config=(ubuntu_vm_1, ubuntu_vm_2, ubuntu_vm_3))
+    ubuntu_vm_1 = VmConfig(
+        vm_source_config=VmSourceConfig(built_in="ubuntu24.04"),
+        vnet_aliases=("alias1",),
+    )
+    ubuntu_vm_2 = VmConfig(
+        vm_source_config=VmSourceConfig(built_in="ubuntu24.04"),
+        vnet_aliases=("alias2",),
+    )
+    ubuntu_vm_3 = VmConfig(
+        vm_source_config=VmSourceConfig(built_in="ubuntu24.04")
+    )  # should end up on alias1 due to no config
+
+    sandbox_env_config = ProxmoxSandboxEnvironmentConfig(
+        sdn_config=sdn_config, vms_config=(ubuntu_vm_1, ubuntu_vm_2, ubuntu_vm_3)
+    )
     try:
         task_name = "sandbox_test_smoketask"
         task_name, envs_dict = await setup_sandbox(task_name, sandbox_env_config)
 
         # TODO assertions!
+    finally:
+        await ProxmoxSandboxEnvironment.sample_cleanup(
+            task_name="unused",
+            config=sandbox_env_config,
+            environments=envs_dict,
+            interrupted=False,
+        )
+
+
+async def test_kali() -> None:
+    envs_dict = {}
+    sandbox_env_config = ProxmoxSandboxEnvironmentConfig(
+        vms_config=(VmConfig(vm_source_config=VmSourceConfig(built_in="kali")),)
+    )
+    try:
+        task_name, envs_dict = await setup_sandbox("kali", sandbox_env_config)
+        uname_result = await envs_dict["default"].exec(
+            [
+                "uname",
+                "-a",
+            ]
+        )
+        assert uname_result.success, f"Failed to run uname: {uname_result=}"
+        assert "Kali" in uname_result.stdout, (
+            f"Unexpected result of uname: {uname_result.stdout=}"
+        )
     finally:
         await ProxmoxSandboxEnvironment.sample_cleanup(
             task_name="unused",

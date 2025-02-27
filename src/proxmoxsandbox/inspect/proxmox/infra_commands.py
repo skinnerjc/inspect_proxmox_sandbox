@@ -44,8 +44,8 @@ class InfraCommands(abc.ABC):
     ):
         vm_configs_with_ids = []
         sdn_zone_id = None
-        if sdn_config is None:
-            raise ValueError("SDN config must be provided")
+        if (sdn_config is None) or (not sdn_config.vnet_configs):
+            raise ValueError(f"SDN config must be provided; {sdn_config=};")
 
         sdn_zone_id, vnet_id, vnet_aliases = await self.sdn_commands.create_sdn(
             proxmox_ids_start, sdn_config
@@ -81,7 +81,7 @@ class InfraCommands(abc.ABC):
     async def generate_sdn_config(
         self, aliases: Tuple[Optional[str], ...] = ()
     ) -> SdnConfig:
-        if aliases is None:
+        if len(aliases) == 0:
             aliases = (None,)
 
         vnet_configs: List[VnetConfig] = []

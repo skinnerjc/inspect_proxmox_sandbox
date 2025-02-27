@@ -70,7 +70,7 @@ class VmSourceConfig(BaseModel, frozen=True):
     existing_backup_name: str | None = (
         None  # otherwise, the VM will be created from this backup
     )
-    built_in: Literal["ubuntu24.04", "debian12"] | None = (
+    built_in: Literal["ubuntu24.04", "debian12", "kali"] | None = (
         None  # otherwise, the provider will attempt to create a VM suitable for a sandbox
     )
 

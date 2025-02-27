@@ -220,6 +220,16 @@ runcmd:
                     break
         return found_builtins
 
+    async def content_exists(self, storage: str, content_name_end: str) -> bool:
+        existing_content = await self.async_proxmox.request(
+            "GET",
+            f"/nodes/{self.node}/storage/{storage}/content",
+        )
+        return any(
+            content["volid"] and content["volid"].endswith(content_name_end)
+            for content in existing_content
+        )
+
     async def ensure_exists(
         self, vm_source_config: VmSourceConfig, known_buitins: Dict[str, int]
     ) -> None:
@@ -234,23 +244,29 @@ runcmd:
         # TODO: allow storage to be configurable
         storage = "local"
 
-        async def content_exists(content_name_end: str) -> bool:
-            existing_content = await self.async_proxmox.request(
-                "GET",
-                f"/nodes/{self.node}/storage/{storage}/content",
+        if vm_source_config.built_in == "ubuntu24.04":
+            await self.ensure_exists_ubuntu_24_04(
+                storage=storage, next_available_vm_id=next_available_vm_id
             )
-            return any(
-                content["volid"] and content["volid"].endswith(content_name_end)
-                for content in existing_content
+        elif vm_source_config.built_in == "kali":
+            await self.ensure_exists_kali(
+                storage=storage, next_available_vm_id=next_available_vm_id
             )
+        else:
+            raise ValueError(f"Unknown built-in {vm_source_config.built_in}")
 
-        if await content_exists("/ubuntu24.04.ova"):
-            self.logger.debug(f"OVA {vm_source_config.built_in} already uploaded")
+    async def ensure_exists_ubuntu_24_04(
+        self, storage: str, next_available_vm_id: int
+    ) -> None:
+        built_in = "ubuntu24.04"
+
+        if await self.content_exists(storage, "/ubuntu24.04.ova"):
+            self.logger.debug(f"OVA {built_in} already uploaded")
         else:
             with trace_action(
                 self.logger,
                 self.TRACE_NAME,
-                f"upload OVA {vm_source_config.built_in=} ",
+                f"upload OVA {built_in=} ",
             ):
                 await self.async_proxmox.request(
                     "POST",
@@ -267,7 +283,7 @@ runcmd:
                     stop=tenacity.stop_after_delay(300),
                 )
                 async def upload_complete() -> None:
-                    if not await content_exists("/ubuntu24.04.ova"):
+                    if not await self.content_exists(storage, "/ubuntu24.04.ova"):
                         raise ValueError("OVA upload not yet complete")
 
                 await upload_complete()
@@ -317,7 +333,7 @@ runcmd:
                     f"/nodes/{self.node}/qemu",
                     json={
                         "vmid": next_available_vm_id,
-                        "name": f"inspect-{vm_source_config.built_in}",
+                        "name": f"inspect-{built_in}",
                         "node": self.node,
                         "cpu": "host",
                         "memory": 2048,
@@ -348,7 +364,7 @@ runcmd:
                     "POST",
                     f"/nodes/{self.node}/qemu/{next_available_vm_id}/config",
                     json={
-                        "tags": f"inspect-{vm_source_config.built_in}",
+                        "tags": f"inspect-{built_in}",
                     },
                 )
 
@@ -432,3 +448,98 @@ runcmd:
 
             # TODO tear down SDN zone and vnet
             # TODO delete cloudinit ISO
+
+    async def ensure_exists_kali(self, storage: str, next_available_vm_id: int) -> None:
+        built_in = "kali"
+
+        filename = "kali-linux-2024.4-live-everything-amd64.iso"
+
+        if await self.content_exists(storage, filename):
+            self.logger.debug("Kali ISO already uploaded")
+        else:
+            with trace_action(
+                self.logger,
+                self.TRACE_NAME,
+                f"upload OVA {built_in=} ",
+            ):
+                await self.async_proxmox.request(
+                    "POST",
+                    f"/nodes/{self.node}/storage/{storage}/download-url",
+                    json={
+                        "content": "iso",
+                        "filename": filename,
+                        "url": f"http://10.0.2.2:8000/{filename}",
+                    },
+                )
+
+                @tenacity.retry(
+                    wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
+                    stop=tenacity.stop_after_delay(300),
+                )
+                async def upload_complete() -> None:
+                    if not await self.content_exists(filename):
+                        raise ValueError("ISO upload not yet complete")
+
+                await upload_complete()
+
+        with trace_action(
+            self.logger,
+            self.TRACE_NAME,
+            f"create VM from ISO {next_available_vm_id=}",
+        ):
+
+            async def do_create() -> None:
+                await self.async_proxmox.request(
+                    "POST",
+                    f"/nodes/{self.node}/qemu",
+                    json={
+                        "vmid": next_available_vm_id,
+                        "name": f"inspect-{built_in}",
+                        "node": self.node,
+                        "cpu": "host",
+                        "memory": 2048,
+                        "cores": 2,
+                        "ostype": "l26",
+                        "ide2": f"{storage}:iso/{filename},media=cdrom",
+                        "scsihw": "virtio-scsi-single",
+                        "start": False,
+                        "agent": "enabled=1",
+                    },
+                )
+
+            await self.task_wrapper.do_action_and_wait_for_tasks(do_create)
+
+            # TODO: rather than these two retried calls, we should wait until the VM is definitely not locked, then go
+            @tenacity.retry(
+                wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
+                stop=tenacity.stop_after_delay(120),
+            )
+            async def update_tags() -> None:
+                await self.async_proxmox.request(
+                    "POST",
+                    f"/nodes/{self.node}/qemu/{next_available_vm_id}/config",
+                    json={
+                        "tags": f"inspect-{built_in}",
+                    },
+                )
+
+            await update_tags()
+
+            await self.async_proxmox.request(
+                "POST",
+                f"/nodes/{self.node}/qemu/{next_available_vm_id}/template",
+            )
+
+            @tenacity.retry(
+                wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
+                stop=tenacity.stop_after_delay(300),
+                retry=tenacity.retry_if_result(lambda x: x is False),
+            )
+            async def is_template() -> bool:
+                current_config = await self.async_proxmox.request(
+                    "GET",
+                    f"/nodes/{self.node}/qemu/{next_available_vm_id}/config?current=1",
+                )
+                return current_config["template"] == 1
+
+            await is_template()
