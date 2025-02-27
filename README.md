@@ -73,6 +73,11 @@ sandbox=SandboxEnvironmentSpec(
                 # ... snip ...
                 is_sandbox = False
             ),
+            # If you have more than one VNet, assign the VM to the VNet via vnet_alias
+            VmConfig(
+                # ... snip ...
+                vnet_alias = "my special vnet"
+            ),
         ),
         # You will need a separate SDN per sample, or the VMs will be able to see each other
         # IP ranges *must* be distinct, unfortunately.
@@ -93,7 +98,8 @@ sandbox=SandboxEnvironmentSpec(
                                 ),
                             ),
                         ),
-                    )
+                    ),
+                    alias="my special vnet"
                 ),
             ),
             # Set use_pve_ipam_dnsnmasq to True if you want your instances to be able to access the internet
