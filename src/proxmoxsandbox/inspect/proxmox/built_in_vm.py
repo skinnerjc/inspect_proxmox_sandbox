@@ -177,12 +177,15 @@ runcmd:
 
         payload += iso_data + f"\r\n--{boundary}--\r\n".encode("us-ascii")
 
-        await self.async_proxmox.request(
-            "POST",
-            f"/nodes/{self.node}/storage/{storage}/upload",
-            content=payload,
-            content_type=f"multipart/form-data; boundary={boundary}",
-        )
+        async def upload_cloudinit_iso() -> None:
+            await self.async_proxmox.request(
+                "POST",
+                f"/nodes/{self.node}/storage/{storage}/upload",
+                content=payload,
+                content_type=f"multipart/form-data; boundary={boundary}",
+            )
+
+        await self.task_wrapper.do_action_and_wait_for_tasks(upload_cloudinit_iso)
 
         @tenacity.retry(
             wait=tenacity.wait_exponential(min=1, exp_base=1.3),
