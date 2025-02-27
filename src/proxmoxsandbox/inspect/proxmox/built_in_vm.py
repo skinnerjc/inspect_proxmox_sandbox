@@ -9,6 +9,8 @@ from inspect_ai.util import trace_action
 from proxmoxsandbox.inspect.proxmox.agent_commands import AgentCommands
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
+from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands
+from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
 from proxmoxsandbox.inspect.schema import (
     DhcpRange,
@@ -26,16 +28,16 @@ class BuiltInVM(abc.ABC):
     STATIC_SDN_START = "inspvm"
 
     async_proxmox: AsyncProxmoxAPI
-    infra_commands: InfraCommands
+    qemu_commands: QemuCommands
+    sdn_commands: SdnCommands
     task_wrapper: TaskWrapper
     node: str
 
-    def __init__(
-        self, async_proxmox: AsyncProxmoxAPI, infra_commands: InfraCommands, node: str
-    ):
+    def __init__(self, async_proxmox: AsyncProxmoxAPI, node: str):
         self.async_proxmox = async_proxmox
         self.task_wrapper = TaskWrapper(async_proxmox)
-        self.infra_commands = infra_commands
+        self.qemu_commands = QemuCommands(async_proxmox, node)
+        self.sdn_commands = SdnCommands(async_proxmox, node)
         self.node = node
 
     async def create_and_upload_cloudinit_iso(
@@ -201,7 +203,7 @@ runcmd:
         await attach_to_vm()
 
     async def known_builtins(self) -> Dict[str, int]:
-        existing_vms = await self.infra_commands.list_vms()
+        existing_vms = await self.qemu_commands.list_vms()
 
         found_builtins = {}
 
@@ -226,7 +228,7 @@ runcmd:
         if vm_source_config.built_in in known_buitins:
             return
 
-        next_available_vm_id = await self.infra_commands.find_next_available_vm_id()
+        next_available_vm_id = await self.qemu_commands.find_next_available_vm_id()
 
         # TODO: allow storage to be configurable
         storage = "local"
@@ -269,7 +271,7 @@ runcmd:
 
                 await upload_complete()
 
-        existing_zones = await self.infra_commands.list_sdn_zones()
+        existing_zones = await self.sdn_commands.list_sdn_zones()
 
         exists_already = any(
             zone_info["zone"] and zone_info["zone"] == f"{self.STATIC_SDN_START}z"
@@ -279,7 +281,7 @@ runcmd:
         if exists_already:
             vnet_id = f"{self.STATIC_SDN_START}v0"
         else:
-            _, vnet_id, _ = await self.infra_commands.create_sdn(
+            _, vnet_id, _ = await self.sdn_commands.create_sdn(
                 proxmox_ids_start=self.STATIC_SDN_START,
                 sdn_config=SdnConfig(
                     vnet_configs=(
@@ -351,7 +353,7 @@ runcmd:
 
             await update_tags()
 
-            await self.infra_commands.start_and_await(next_available_vm_id)
+            await self.qemu_commands.start_and_await(next_available_vm_id)
 
             # now wait for cloud-init to finish
 
@@ -389,7 +391,7 @@ runcmd:
                 f"/nodes/{self.node}/qemu/{next_available_vm_id}/status/shutdown",
             )
 
-            await self.infra_commands.await_vm(
+            await self.qemu_commands.await_vm(
                 vm_id=next_available_vm_id,
                 is_sandbox=True,
                 status_for_wait="stopped",

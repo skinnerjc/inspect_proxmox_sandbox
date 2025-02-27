@@ -5,7 +5,7 @@ import shlex
 import time
 from logging import getLogger
 from pathlib import Path
-from random import randint, shuffle
+from random import randint
 from typing import Dict, Generator, List, Tuple, Union
 
 import tenacity
@@ -23,13 +23,12 @@ from inspect_ai.util import (
 
 from proxmoxsandbox.inspect.proxmox.agent_commands import AgentCommands
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
 from proxmoxsandbox.inspect.proxmox.built_in_vm import BuiltInVM
+from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
 from proxmoxsandbox.inspect.schema import (
-    SdnConfig,
     ProxmoxSandboxEnvironmentConfig,
-    simple_sdn_config,
+    SdnConfig,
 )
 
 # node name is hardcoded, could make it configurable
@@ -61,9 +60,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
     ):
         self.infra_commands = InfraCommands(async_proxmox=proxmox, node=NODE_NAME)
         self.agent_commands = AgentCommands(async_proxmox=proxmox, node=NODE_NAME)
-        self.built_in_vm = BuiltInVM(
-            async_proxmox=proxmox, infra_commands=self.infra_commands, node=NODE_NAME
-        )
+        self.built_in_vm = BuiltInVM(async_proxmox=proxmox, node=NODE_NAME)
         self.task_wrapper = TaskWrapper(async_proxmox=proxmox)
         self.sdn_config = sdn_config
         self.vm_id = vm_id
@@ -161,31 +158,10 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         proxmox_ids_start = f"{task_name_start}{randint(0, 999):03d}"
         # TODO: could check here for collisions
 
-        sdn_config = config.sdn_config
-        if sdn_config is None:
-            try_third_octets = list(range(2, 253))
-            # Deliberately randomize the IP address range you get if you don't specify one.
-            # This is to avoid brittle evals
-            shuffle(try_third_octets)
-            for third_octet in try_third_octets:
-                try_sdn_config = simple_sdn_config(third_octet)
-                try:
-                    await infra_commands.check_cidrs(sdn_config=try_sdn_config)
-                    sdn_config = try_sdn_config
-                    break
-                except ValueError:
-                    continue
-        if sdn_config is None:
-            raise ValueError("Could not find a suitable IP range for the SDN")
-        # There is obviously a race condition here. Another eval could sneak in and create a clashing
-        # IP range.
-        # We could use a 10.*/24 range instead, which would give us many more ranges and
-        # reduce the chance of a collision.
+        sdn_config = config.sdn_config or await infra_commands.generate_sdn_config()
 
         async with concurrency("proxmox", 1):
-            built_in_vm = BuiltInVM(
-                async_proxmox=proxmox, infra_commands=infra_commands, node=NODE_NAME
-            )
+            built_in_vm = BuiltInVM(async_proxmox=proxmox, node=NODE_NAME)
             og_known_builtins = await built_in_vm.known_builtins()
             for vm_config in config.vms_config:
                 if vm_config.vm_source_config.built_in is not None:
@@ -257,14 +233,10 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
 
         if any_vm_sandbox_environment is not None:
             async with concurrency("proxmox", 1):
-                for vm_id in any_vm_sandbox_environment.all_vm_ids:
-                    await any_vm_sandbox_environment.infra_commands.destroy_vm(
-                        vm_id=vm_id
-                    )
-                if any_vm_sandbox_environment.sdn_zone_id is not None:
-                    await any_vm_sandbox_environment.infra_commands.tear_down_sdn_zone_and_vnet(
-                        sdn_zone_id=any_vm_sandbox_environment.sdn_zone_id
-                    )
+                await any_vm_sandbox_environment.infra_commands.delete_sdn_and_vms(
+                    sdn_zone_id=any_vm_sandbox_environment.sdn_zone_id,
+                    vm_ids=any_vm_sandbox_environment.all_vm_ids,
+                )
         return None
 
     @classmethod

@@ -26,7 +26,7 @@ async def test_create_sdn(proxmox_api: AsyncProxmoxAPI) -> None:
 
     finally:
         if sdn_zone_id is not None:
-            await infra_config.tear_down_sdn_zone_and_vnet(sdn_zone_id)
+            await infra_config.delete_sdn_and_vms(sdn_zone_id, ())
 
 
 async def test_create_sdn_duplicate(proxmox_api: AsyncProxmoxAPI) -> None:
@@ -58,5 +58,4 @@ async def test_create_sdn_duplicate(proxmox_api: AsyncProxmoxAPI) -> None:
         assert "22" in str(e_info.value)
     finally:
         for sdn_zone_id in sdn_zone_ids:
-            await infra_config.tear_down_sdn_zone_and_vnet(sdn_zone_id)
-
+            await infra_config.delete_sdn_and_vms(sdn_zone_id, ())

@@ -1,10 +1,23 @@
+from proxmoxsandboxtest.proxmox_sandbox_utils import (
+    setup_requests_logging,
+    setup_sandbox,
+)
+
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
-from proxmoxsandboxtest.proxmox_sandbox_utils import setup_requests_logging, setup_sandbox
 
 
 async def test_smoke(sandbox_env_config) -> None:
-    task_name = "sandbox_test_smoketask"
-    task_name, envs_dict = await setup_sandbox(task_name, sandbox_env_config)
+    envs_dict = {}
+    try:
+        task_name = "sandbox_test_smoketask"
+        task_name, envs_dict = await setup_sandbox(task_name, sandbox_env_config)
+    finally:
+        await ProxmoxSandboxEnvironment.sample_cleanup(
+            task_name="unused",
+            config=sandbox_env_config,
+            environments=envs_dict,
+            interrupted=False,
+        )
 
 
 async def test_multiple_sandboxes(sandbox_env_config) -> None:
@@ -23,5 +36,8 @@ async def test_multiple_sandboxes(sandbox_env_config) -> None:
         sandboxes["second"] = envs_dict["default"]
     finally:
         await ProxmoxSandboxEnvironment.sample_cleanup(
-            task_name="unused", config=sandbox_env_config, environments=sandboxes, interrupted=False
+            task_name="unused",
+            config=sandbox_env_config,
+            environments=sandboxes,
+            interrupted=False,
         )
