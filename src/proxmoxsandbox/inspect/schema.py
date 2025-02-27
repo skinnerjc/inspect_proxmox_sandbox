@@ -95,6 +95,9 @@ class VmSourceConfig(BaseModel, frozen=True):
 
 class VmConfig(BaseModel, frozen=True):
     vm_source_config: VmSourceConfig
+    vnet_aliases: Tuple[
+        str, ...
+    ] = ()  # if set, the VM will be connected to these VNets (one interface per VNet), otherwise it will just be connected to the first one
     is_sandbox: bool = True  # if so, the VM will show up as a sandbox. It must have the qemu-guest-agent installed
 
 

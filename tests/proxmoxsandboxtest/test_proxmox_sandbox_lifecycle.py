@@ -1,6 +1,7 @@
+from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
 from proxmoxsandbox.inspect.schema import (
     ProxmoxSandboxEnvironmentConfig,
-    simple_sdn_config,
 )
 from proxmoxsandboxtest.proxmox_sandbox_utils import (
     setup_requests_logging,
@@ -10,11 +11,12 @@ from proxmoxsandboxtest.proxmox_sandbox_utils import (
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
 
 
-async def test_smoke() -> None:
+async def test_smoke(proxmox_api: AsyncProxmoxAPI) -> None:
     envs_dict = {}
-    sandbox_env_config = ProxmoxSandboxEnvironmentConfig(
-        sdn_config=simple_sdn_config(alias="interesting alias with ( . _ 0 and -")
+    sdn_config = await InfraCommands(proxmox_api, node="proxmox").generate_sdn_config(
+        alias="interesting alias with ( . _ 0 and -"
     )
+    sandbox_env_config = ProxmoxSandboxEnvironmentConfig(sdn_config=sdn_config)
     try:
         task_name = "sandbox_test_smoketask"
         task_name, envs_dict = await setup_sandbox(task_name, sandbox_env_config)

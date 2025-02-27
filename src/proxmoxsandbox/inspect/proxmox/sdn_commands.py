@@ -1,7 +1,7 @@
 import abc
 from ipaddress import ip_network
 from logging import getLogger
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 from inspect_ai.util import trace_action
 
@@ -79,6 +79,8 @@ class SdnCommands(abc.ABC):
                 f"Too many vnets; max 10, got {len(sdn_config.vnet_configs)}"
             )
 
+        vnet_aliases: Dict[str,str] = {}
+
         for idx, vnet_config in enumerate(sdn_config.vnet_configs):
             vnet_id = f"{proxmox_ids_start}v{idx}"
 
@@ -86,6 +88,7 @@ class SdnCommands(abc.ABC):
                 vnet_json = {"vnet": vnet_id, "zone": sdn_zone_id}
                 if vnet_config.alias is not None:
                     vnet_json["alias"] = vnet_config.alias
+                    vnet_aliases[vnet_config.alias] = vnet_id
                 await self.async_proxmox.request(
                     "POST",
                     "/cluster/sdn/vnets",
@@ -118,12 +121,7 @@ class SdnCommands(abc.ABC):
 
         await self.do_update_all_sdn()
 
-        with trace_action(self.logger, self.TRACE_NAME, "get subnets"):
-            subnet_for_vms = await self.async_proxmox.request(
-                "GET", f"/cluster/sdn/vnets/{vnet_id}/subnets"
-            )
-
-        return sdn_zone_id, vnet_id, subnet_for_vms
+        return sdn_zone_id, vnet_id, vnet_aliases
 
     async def do_update_all_sdn(self) -> None:
         async def update_all_sdn() -> None:

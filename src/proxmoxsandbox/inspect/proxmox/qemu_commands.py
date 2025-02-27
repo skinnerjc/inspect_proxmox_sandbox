@@ -1,6 +1,6 @@
 import abc
 from logging import getLogger
-from typing import Dict
+from typing import Dict, Tuple
 
 import tenacity
 from inspect_ai.util import trace_action
@@ -25,8 +25,6 @@ class QemuCommands(abc.ABC):
         self.async_proxmox = async_proxmox
         self.task_wrapper = TaskWrapper(async_proxmox)
         self.node = node
-
- 
 
     async def await_vm(
         self, vm_id: int, is_sandbox: bool, status_for_wait: str = "running"
@@ -131,9 +129,9 @@ class QemuCommands(abc.ABC):
 
     async def create_and_start_vm(
         self,
-        sdn_zone_id: str,
-        vnet_id: str,
-        subnet: str,
+        sdn_vnet_aliases: Dict[
+            str, str
+        ],  # a mapping of vnet aliases to vnet ids, for the particular sdn_zone_id
         vm_config: VmConfig,
         built_in_vm_ids: Dict[str, int],
     ) -> int:
@@ -187,13 +185,24 @@ class QemuCommands(abc.ABC):
                 await create_clone()
 
                 async def update_network() -> None:
+                    network_update_json = {
+                        "tags": ""
+                    }  # remove the tag as that's only for the template
+                    if len(vm_config.vnet_aliases) > 0:
+                        for i, vnet_alias in enumerate(vm_config.vnet_aliases):
+                            network_update_json[f"net{i}"] = (
+                                f"virtio,bridge={sdn_vnet_aliases[vnet_alias]}"
+                            )
+                    else:
+                            first_vnet_id = list(sdn_vnet_aliases.values())[0]
+                            network_update_json["net0"] = (
+                                f"virtio,bridge={first_vnet_id}"
+                            )                  
+
                     await self.async_proxmox.request(
                         "POST",
                         f"/nodes/{self.node}/qemu/{new_vm_id}/config",
-                        json={
-                            "tags": "",  # remove the tag as that's only for the template
-                            "net0": f"virtio,bridge={vnet_id}",
-                        },
+                        json=network_update_json,
                     )
 
                 await self.task_wrapper.do_action_and_wait_for_tasks(update_network)

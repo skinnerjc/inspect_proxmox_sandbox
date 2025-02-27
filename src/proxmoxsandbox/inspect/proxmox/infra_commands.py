@@ -42,16 +42,14 @@ class InfraCommands(abc.ABC):
         if sdn_config is None:
             raise ValueError("SDN config must be provided")
 
-        sdn_zone_id, vnet_id, subnet_for_vms = await self.sdn_commands.create_sdn(
+        sdn_zone_id, vnet_id, vnet_aliases = await self.sdn_commands.create_sdn(
             proxmox_ids_start, sdn_config
         )
 
         for vm_config in vms_config:
             with trace_action(self.logger, self.TRACE_NAME, f"create VM {vm_config=}"):
                 vm_id = await self.qemu_commands.create_and_start_vm(
-                    sdn_zone_id=sdn_zone_id,
-                    vnet_id=vnet_id,
-                    subnet=subnet_for_vms[0]["subnet"],
+                    sdn_vnet_aliases=vnet_aliases,
                     vm_config=vm_config,
                     built_in_vm_ids=known_builtins,
                 )
@@ -67,24 +65,22 @@ class InfraCommands(abc.ABC):
         # TODO types here
         return vm_configs_with_ids, sdn_zone_id
 
-    async def delete_sdn_and_vms(self, sdn_zone_id: str| None, vm_ids: Tuple[int, ...]):
+    async def delete_sdn_and_vms(
+        self, sdn_zone_id: str | None, vm_ids: Tuple[int, ...]
+    ):
         for vm_id in vm_ids:
-                    await self.qemu_commands.destroy_vm(
-                        vm_id=vm_id
-                    )
+            await self.qemu_commands.destroy_vm(vm_id=vm_id)
         if sdn_zone_id is not None:
-            await self.sdn_commands.tear_down_sdn_zone_and_vnet(
-                sdn_zone_id=sdn_zone_id
-            )
+            await self.sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id=sdn_zone_id)
 
-    async def generate_sdn_config(self) -> SdnConfig:
+    async def generate_sdn_config(self, alias: str | None = None) -> SdnConfig:
         sdn_config = None
         try_third_octets = list(range(2, 253))
         # Deliberately randomize the IP address range you get if you don't specify one.
         # This is to avoid brittle evals
         shuffle(try_third_octets)
         for third_octet in try_third_octets:
-            try_sdn_config = simple_sdn_config(third_octet)
+            try_sdn_config = simple_sdn_config(third_octet=third_octet, alias=alias)
             try:
                 await self.sdn_commands.check_cidrs(sdn_config=try_sdn_config)
                 sdn_config = try_sdn_config
