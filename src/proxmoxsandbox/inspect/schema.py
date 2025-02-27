@@ -36,25 +36,27 @@ class SdnConfig(BaseModel, frozen=True):
 
 
 def simple_sdn_config(third_octet: int = 16, alias: Optional[str] = None) -> SdnConfig:
-    return SdnConfig(
-        vnet_configs=(
-            VnetConfig(
-                subnets=(
-                    SubnetConfig(
-                        cidr=ip_network(f"192.168.{third_octet}.0/24"),
-                        gateway=ip_address(f"192.168.{third_octet}.1"),
-                        snat=True,
-                        dhcp_ranges=(
-                            DhcpRange(
-                                start=ip_address(f"192.168.{third_octet}.50"),
-                                end=ip_address(f"192.168.{third_octet}.100"),
-                            ),
-                        ),
+    return SdnConfig(vnet_configs=(simple_vnet_config(third_octet, alias),))
+
+
+def simple_vnet_config(
+    third_octet: int = 16, alias: Optional[str] = None
+) -> VnetConfig:
+    return VnetConfig(
+        subnets=(
+            SubnetConfig(
+                cidr=ip_network(f"192.168.{third_octet}.0/24"),
+                gateway=ip_address(f"192.168.{third_octet}.1"),
+                snat=True,
+                dhcp_ranges=(
+                    DhcpRange(
+                        start=ip_address(f"192.168.{third_octet}.50"),
+                        end=ip_address(f"192.168.{third_octet}.100"),
                     ),
                 ),
-                alias=alias,
             ),
-        )
+        ),
+        alias=alias,
     )
 
 

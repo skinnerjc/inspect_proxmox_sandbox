@@ -2,6 +2,8 @@ from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
 from proxmoxsandbox.inspect.schema import (
     ProxmoxSandboxEnvironmentConfig,
+    VmConfig,
+    VmSourceConfig,
 )
 from proxmoxsandboxtest.proxmox_sandbox_utils import (
     setup_requests_logging,
@@ -88,6 +90,31 @@ async def test_multiple_vnets(proxmox_api: AsyncProxmoxAPI) -> None:
     try:
         task_name = "sandbox_test_smoketask"
         task_name, envs_dict = await setup_sandbox(task_name, sandbox_env_config)
+    finally:
+        await ProxmoxSandboxEnvironment.sample_cleanup(
+            task_name="unused",
+            config=sandbox_env_config,
+            environments=envs_dict,
+            interrupted=False,
+        )
+
+
+async def test_vnet_mix_alias_or_not(proxmox_api: AsyncProxmoxAPI) -> None:
+    envs_dict = {}
+    sdn_config = await InfraCommands(proxmox_api, node="proxmox").generate_sdn_config(
+        aliases=("alias1", "alias2", None)
+    )
+
+    ubuntu_vm_1 = VmConfig(vm_source_config=VmSourceConfig(built_in="ubuntu24.04"), vnet_aliases=("alias1",))
+    ubuntu_vm_2 = VmConfig(vm_source_config=VmSourceConfig(built_in="ubuntu24.04"), vnet_aliases=("alias2",))
+    ubuntu_vm_3 = VmConfig(vm_source_config=VmSourceConfig(built_in="ubuntu24.04")) # should end up on alias1 due to no config
+ 
+    sandbox_env_config = ProxmoxSandboxEnvironmentConfig(sdn_config=sdn_config, vms_config=(ubuntu_vm_1, ubuntu_vm_2, ubuntu_vm_3))
+    try:
+        task_name = "sandbox_test_smoketask"
+        task_name, envs_dict = await setup_sandbox(task_name, sandbox_env_config)
+
+        # TODO assertions!
     finally:
         await ProxmoxSandboxEnvironment.sample_cleanup(
             task_name="unused",

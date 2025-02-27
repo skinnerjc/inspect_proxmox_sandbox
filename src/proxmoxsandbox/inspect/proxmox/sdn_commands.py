@@ -1,15 +1,13 @@
 import abc
 from ipaddress import ip_network
 from logging import getLogger
-from typing import List, Tuple, Dict
+from typing import List, Tuple
 
 from inspect_ai.util import trace_action
 
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
-from proxmoxsandbox.inspect.schema import (
-    SdnConfig,
-)
+from proxmoxsandbox.inspect.schema import SdnConfig, VnetConfig
 
 
 class SdnCommands(abc.ABC):
@@ -40,11 +38,11 @@ class SdnCommands(abc.ABC):
 
         return overlaps
 
-    async def check_cidrs(self, sdn_config):
+    async def check_cidrs(self, vnet_configs: List[VnetConfig]) -> None:
         existing_cidrs = await self.read_all_simple_zone_cidrs()
 
         new_cidrs = []
-        for vnet_config in sdn_config.vnet_configs:
+        for vnet_config in vnet_configs:
             for subnet in vnet_config.subnets:
                 new_cidrs.append(str(subnet.cidr))
 
@@ -55,7 +53,7 @@ class SdnCommands(abc.ABC):
     async def create_sdn(
         self, proxmox_ids_start: str, sdn_config: SdnConfig
     ) -> Tuple[str, str, List[Tuple[str, str | None]]]:
-        await self.check_cidrs(sdn_config)
+        await self.check_cidrs(list(sdn_config.vnet_configs))
 
         sdn_zone_id = f"{proxmox_ids_start}z"
 
