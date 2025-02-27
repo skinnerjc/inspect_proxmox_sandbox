@@ -21,7 +21,7 @@ async def test_smoke(sandbox_env_config) -> None:
 
 
 async def test_multiple_sandboxes(sandbox_env_config) -> None:
-    setup_requests_logging()
+    # setup_requests_logging()
 
     sandboxes = {}
 
@@ -34,6 +34,14 @@ async def test_multiple_sandboxes(sandbox_env_config) -> None:
         task_name = "sandbox_2_task"
         task_name, envs_dict = await setup_sandbox(task_name, sandbox_env_config)
         sandboxes["second"] = envs_dict["default"]
+
+        second_ip = (await sandboxes["second"].exec(["bash", "-c", 'ip a | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v "127\.0" '])).stdout.splitlines()
+        if len(second_ip) != 1:
+            raise Exception(f"Expected exactly one IP address, got {second_ip}")
+        
+        ping_result = await sandboxes["first"].exec(["ping", "-c", "1", second_ip[0]], timeout=3)
+
+        assert not ping_result.success, f"Should not be able to ping between sandboxes; {ping_result=}"
     finally:
         await ProxmoxSandboxEnvironment.sample_cleanup(
             task_name="unused",
