@@ -246,8 +246,14 @@ class QemuCommands(abc.ABC):
                     "ostype": "l26",
                     "scsihw": "virtio-scsi-single",
                     "start": False,
-                    "agent": "enabled=1",
+                    "bios" : "ovmf" if vm_config.uefi_boot else "seabios",
+                    "agent": "enabled=1", # TODO only if is_sandbox
                 }
+
+                if vm_config.uefi_boot:
+                    json_for_create["efidisk0"] = (
+                        "local-lvm:0,efitype=4m,pre-enrolled-keys=0"
+                    )
 
                 vmdks = []
                 with tarfile.open(vm_config.vm_source_config.ova, "r") as tar:

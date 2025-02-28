@@ -1,14 +1,25 @@
 #!/bin/bash
+# note: the uefi param doesn't actually work in proxmox, though it seems fine in VirtualBox
+# this script has a bunch of problems with idempotency TODO fix them
 
-# Check if source directory is provided
 if [ -z "$1" ]; then
-    echo "Usage: $0 <source_directory>"
+    echo "Usage: $0 <source_directory> [uefi]"
+    echo "Add 'uefi' as second parameter to enable UEFI boot mode"
     exit 1
 fi
 
 SOURCE_DIR="$1"
 TEMP_DIR="/tmp/qcow2_to_ova_conversion"
 OUTPUT_DIR="$SOURCE_DIR/converted_ovas"
+UEFI_MODE=0
+
+# Check if UEFI mode is requested
+if [ "$2" = "uefi" ]; then
+    UEFI_MODE=1
+    echo "UEFI boot mode enabled"
+fi
+
+set -eu
 
 mkdir -p "$TEMP_DIR" "$OUTPUT_DIR"
 
@@ -26,7 +37,16 @@ for qcow2_file in "$SOURCE_DIR"/*.qcow2; do
 
     # Create and configure VM
     VBoxManage createvm --name "$filename" --ostype Linux26_64 --register
+    
+    # Configure basic VM settings
     VBoxManage modifyvm "$filename" --memory 2048 --cpus 2 --acpi on --boot1 disk
+    
+    # Configure UEFI if requested
+    if [ $UEFI_MODE -eq 1 ]; then
+        VBoxManage modifyvm "$filename" --firmware efi
+    fi
+    
+    # Configure storage
     VBoxManage storagectl "$filename" --name "SATA Controller" --add sata --controller IntelAhci
     VBoxManage storageattach "$filename" --storagectl "SATA Controller" --port 0 --device 0 --type hdd --medium "$TEMP_DIR/$filename.vdi"
 
@@ -39,5 +59,5 @@ for qcow2_file in "$SOURCE_DIR"/*.qcow2; do
     echo "Converted: $OUTPUT_DIR/$filename.ova"
 done
 
-rmdir "$TEMP_DIR"
+rm -rf "$TEMP_DIR"
 echo "All conversions completed!"

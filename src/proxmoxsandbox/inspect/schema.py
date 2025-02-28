@@ -103,7 +103,8 @@ class VmConfig(BaseModel, frozen=True):
     vnet_aliases: Tuple[
         str, ...
     ] = ()  # if set, the VM will be connected to these VNets (one interface per VNet), otherwise it will just be connected to the first one
-    is_sandbox: bool = True  # if so, the VM will show up as a sandbox. It must have the qemu-guest-agent installed
+    is_sandbox: bool = True  # if True, the VM will show up as a sandbox. It must have the qemu-guest-agent installed
+    uefi_boot: bool = False # if True, the VM will boot in UEFI mode. In theory, this is already specified by OVA, but Proxmox doesn't seem to respect it.
 
 
 def get_env(env_var: str) -> str:
