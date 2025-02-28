@@ -167,7 +167,7 @@ runcmd:
         filename = f"vm-{vm_id}-cl00udinit.iso"
 
         await self.storage_commands.upload_file_to_storage(
-            content=iso_data, filename=filename, file_type="iso"
+            content=iso_data, filename=filename, file_type="iso", overwrite=True
         )
 
         @tenacity.retry(

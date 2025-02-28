@@ -1,7 +1,7 @@
 import abc
+import uuid
 from logging import getLogger
 from typing import Literal
-
 
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
@@ -28,6 +28,7 @@ class StorageCommands(abc.ABC):
         content: bytes,
         filename: str,
         file_type: Literal["iso", "vztmpl", "import"],
+        overwrite: bool = False,
     ) -> None:
         """
         Uploads a file to Proxmox storage.
@@ -37,8 +38,25 @@ class StorageCommands(abc.ABC):
             content: The binary content of the file
             filename: The filename to use for the file in Proxmox storage
             file_type: One of the file types supported by Proxmox
+            overwrite: Whether to overwrite the file if it already exists. If False, this function will return immediately if the file already exists.
         """
-        import uuid
+
+        if not overwrite:
+            existing_content = await self.async_proxmox.request(
+                "GET",
+                f"/nodes/{self.node}/storage/{self.storage}/content?content={file_type}",
+                # json={
+                #     "content" : file_type,
+                # }
+            )
+            for existing_file in existing_content:
+                if "volid" in existing_file and existing_file["volid"].endswith(
+                    filename
+                ):
+                    self.logger.debug(
+                        f"File {filename} already exists in storage {self.storage} on node {self.node} at {existing_file['volid']}"
+                    )
+                    return
 
         boundary = str(uuid.uuid4())
 
