@@ -1,7 +1,7 @@
 import abc
 from ipaddress import ip_address, ip_network
 from logging import getLogger
-from typing import Dict, get_args, Literal
+from typing import Dict, get_args
 
 import tenacity
 from inspect_ai.util import trace_action
@@ -10,6 +10,7 @@ from proxmoxsandbox.inspect.proxmox.agent_commands import AgentCommands
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands
 from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
+from proxmoxsandbox.inspect.proxmox.storage_commands import StorageCommands
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
 from proxmoxsandbox.inspect.schema import (
     DhcpRange,
@@ -30,6 +31,8 @@ class BuiltInVM(abc.ABC):
     qemu_commands: QemuCommands
     sdn_commands: SdnCommands
     task_wrapper: TaskWrapper
+    storage_commands: StorageCommands
+    storage: str
     node: str
 
     def __init__(self, async_proxmox: AsyncProxmoxAPI, node: str):
@@ -37,11 +40,12 @@ class BuiltInVM(abc.ABC):
         self.task_wrapper = TaskWrapper(async_proxmox)
         self.qemu_commands = QemuCommands(async_proxmox, node)
         self.sdn_commands = SdnCommands(async_proxmox, node)
+        self.storage = "local"
+        self.storage_commands = StorageCommands(async_proxmox, node, self.storage)
         self.node = node
 
     async def create_and_upload_cloudinit_iso(
         self,
-        storage: str,
         vm_id: int,
         meta_data: str = """instance-id: proxmox\n""",  # TODO sort this
         user_data: str = """#cloud-config
@@ -161,8 +165,10 @@ runcmd:
 
         iso_data = iso_buffer.getvalue()
         filename = f"vm-{vm_id}-cl00udinit.iso"
-        
-        await self.upload_file_to_storage(storage=storage, content=iso_data, filename=filename, file_type="iso")
+
+        await self.storage_commands.upload_file_to_storage(
+            content=iso_data, filename=filename, file_type="iso"
+        )
 
         @tenacity.retry(
             wait=tenacity.wait_exponential(min=1, exp_base=1.3),
@@ -172,51 +178,10 @@ runcmd:
             await self.async_proxmox.request(
                 "POST",
                 f"/nodes/{self.node}/qemu/{vm_id}/config",
-                json={"ide2": f"{storage}:iso/{filename},media=cdrom"},
+                json={"ide2": f"{self.storage}:iso/{filename},media=cdrom"},
             )
 
         await attach_to_vm()
-
-    async def upload_file_to_storage(
-        self,
-        storage: str,
-        content: bytes,
-        filename: str,
-        file_type: Literal["iso", "vztmpl", "import"],
-    ) -> None:
-        """
-        Uploads a file to Proxmox storage.
-        
-        Args:
-            storage: The storage name in Proxmox
-            content: The binary content of the file
-            filename: The filename to use for the file in Proxmox storage
-        """
-        import uuid
-
-        boundary = str(uuid.uuid4())
-
-        # Construct the multipart form-data payload
-        payload = (
-            f"--{boundary}\r\n"
-            f'Content-Disposition: form-data; name="content"\r\n\r\n{file_type}\r\n'
-            f"--{boundary}\r\n"
-            f'Content-Disposition: form-data; name="filename"; filename="{filename}"\r\n'
-            f"Content-Length: {len(content)}\r\n\r\n"
-        ).encode("us-ascii")
-
-        payload += content + f"\r\n--{boundary}--\r\n".encode("us-ascii")
-
-        async def upload_file() -> None:
-            await self.async_proxmox.request(
-                "POST",
-                f"/nodes/{self.node}/storage/{storage}/upload",
-                content=payload,
-                content_type=f"multipart/form-data; boundary={boundary}",
-            )
-
-        await self.task_wrapper.do_action_and_wait_for_tasks(upload_file)
-
 
     async def known_builtins(self) -> Dict[str, int]:
         existing_vms = await self.qemu_commands.list_vms()
@@ -365,7 +330,6 @@ runcmd:
             await self.task_wrapper.do_action_and_wait_for_tasks(do_create)
 
             await self.create_and_upload_cloudinit_iso(
-                storage="local",
                 vm_id=next_available_vm_id,
             )
 
