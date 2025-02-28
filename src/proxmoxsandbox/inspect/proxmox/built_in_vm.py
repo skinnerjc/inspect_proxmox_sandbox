@@ -1,14 +1,13 @@
 import abc
 from ipaddress import ip_address, ip_network
 from logging import getLogger
-from typing import Dict, get_args
+from typing import Dict, get_args, Literal
 
 import tenacity
 from inspect_ai.util import trace_action
 
 from proxmoxsandbox.inspect.proxmox.agent_commands import AgentCommands
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
 from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands
 from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
@@ -163,7 +162,7 @@ runcmd:
         iso_data = iso_buffer.getvalue()
         filename = f"vm-{vm_id}-cl00udinit.iso"
         
-        await self.upload_iso_to_storage(storage, iso_data, filename)
+        await self.upload_file_to_storage(storage=storage, content=iso_data, filename=filename, file_type="iso")
 
         @tenacity.retry(
             wait=tenacity.wait_exponential(min=1, exp_base=1.3),
@@ -178,19 +177,20 @@ runcmd:
 
         await attach_to_vm()
 
-    async def upload_iso_to_storage(
+    async def upload_file_to_storage(
         self,
         storage: str,
-        iso_data: bytes,
+        content: bytes,
         filename: str,
+        file_type: Literal["iso", "vztmpl", "import"],
     ) -> None:
         """
-        Uploads an ISO file to Proxmox storage.
+        Uploads a file to Proxmox storage.
         
         Args:
             storage: The storage name in Proxmox
-            iso_data: The binary content of the ISO file
-            filename: The filename to use for the ISO in Proxmox storage
+            content: The binary content of the file
+            filename: The filename to use for the file in Proxmox storage
         """
         import uuid
 
@@ -199,15 +199,15 @@ runcmd:
         # Construct the multipart form-data payload
         payload = (
             f"--{boundary}\r\n"
-            f'Content-Disposition: form-data; name="content"\r\n\r\niso\r\n'
+            f'Content-Disposition: form-data; name="content"\r\n\r\n{file_type}\r\n'
             f"--{boundary}\r\n"
             f'Content-Disposition: form-data; name="filename"; filename="{filename}"\r\n'
-            f"Content-Length: {len(iso_data)}\r\n\r\n"
+            f"Content-Length: {len(content)}\r\n\r\n"
         ).encode("us-ascii")
 
-        payload += iso_data + f"\r\n--{boundary}--\r\n".encode("us-ascii")
+        payload += content + f"\r\n--{boundary}--\r\n".encode("us-ascii")
 
-        async def upload_iso() -> None:
+        async def upload_file() -> None:
             await self.async_proxmox.request(
                 "POST",
                 f"/nodes/{self.node}/storage/{storage}/upload",
@@ -215,7 +215,7 @@ runcmd:
                 content_type=f"multipart/form-data; boundary={boundary}",
             )
 
-        await self.task_wrapper.do_action_and_wait_for_tasks(upload_iso)
+        await self.task_wrapper.do_action_and_wait_for_tasks(upload_file)
 
 
     async def known_builtins(self) -> Dict[str, int]:
