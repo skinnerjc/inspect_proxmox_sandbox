@@ -271,9 +271,11 @@ class QemuCommands(abc.ABC):
                     self.TRACE_NAME,
                     f"create VM from OVA {new_vm_id=}",
                 ):
-                    await self.async_proxmox.request(
-                        "POST", f"/nodes/{self.node}/qemu", json=json_for_create
-                    )
+                    async def create() -> None:
+                        await self.async_proxmox.request(
+                            "POST", f"/nodes/{self.node}/qemu", json=json_for_create
+                        )
+                    await self.task_wrapper.do_action_and_wait_for_tasks(create)
 
                 await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
 
