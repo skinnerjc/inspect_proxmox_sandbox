@@ -6,10 +6,15 @@ import tenacity
 from inspect_ai.util import trace_action
 
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.storage_commands import StorageCommands
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
 from proxmoxsandbox.inspect.schema import (
     VmConfig,
 )
+
+
+from pydantic.networks import HttpUrl
+from pathlib import Path
 
 
 class QemuCommands(abc.ABC):
@@ -19,11 +24,13 @@ class QemuCommands(abc.ABC):
 
     async_proxmox: AsyncProxmoxAPI
     task_wrapper: TaskWrapper
+    storage_commands: StorageCommands
     node: str
 
     def __init__(self, async_proxmox: AsyncProxmoxAPI, node: str):
         self.async_proxmox = async_proxmox
         self.task_wrapper = TaskWrapper(async_proxmox)
+        self.storage_commands = StorageCommands(async_proxmox, node, "local")
         self.node = node
 
     async def await_vm(
@@ -238,8 +245,21 @@ class QemuCommands(abc.ABC):
                 raise NotImplementedError(
                     f"Not supported: {vm_config.vm_source_config.built_in=}"
                 )
-        else:
-            raise NotImplementedError(f"Not supported: {vm_config.vm_source_config=}")
+        elif vm_config.vm_source_config.ova is not None:
+            if isinstance(vm_config.vm_source_config.ova, HttpUrl):
+                raise NotImplementedError(
+                    f"Not supported: {type(vm_config.vm_source_config.ova)}"
+                )
+            if isinstance(vm_config.vm_source_config.ova, Path):
+                await self.storage_commands.upload_file_to_storage(
+                    content=vm_config.vm_source_config.ova.read_bytes(),
+                    filename=vm_config.vm_source_config.ova.name,
+                    file_type="import",
+                )
+            else:
+                raise NotImplementedError(
+                    f"Not supported: {type(vm_config.vm_source_config.ova)}"
+                )               
         if new_vm_id is None:
             raise ValueError("No VM ID?")
         return new_vm_id

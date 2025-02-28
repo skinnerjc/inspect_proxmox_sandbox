@@ -4,8 +4,6 @@ from typing import Literal
 
 
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands
-from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
 
 
@@ -15,8 +13,6 @@ class StorageCommands(abc.ABC):
     TRACE_NAME = "proxmox_storage_commands"
 
     async_proxmox: AsyncProxmoxAPI
-    qemu_commands: QemuCommands
-    sdn_commands: SdnCommands
     task_wrapper: TaskWrapper
     node: str
     storage: str
