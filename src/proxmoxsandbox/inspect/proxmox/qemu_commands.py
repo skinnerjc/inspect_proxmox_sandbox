@@ -27,8 +27,17 @@ class QemuCommands(abc.ABC):
         self.node = node
 
     async def await_vm(
-        self, vm_id: int, is_sandbox: bool, status_for_wait: str = "running"
+        self,
+        vm_id: int,
+        is_sandbox: bool,
+        status_for_wait: str = "running",
+        press_enter_at_grub: bool = False,
     ) -> None:
+        if press_enter_at_grub and (not status_for_wait == "running" or not is_sandbox):
+            raise ValueError(
+                f"It makes no sense to have {press_enter_at_grub=} unless you are waiting for the VM to be running and it's a sandbox"
+            )
+
         @tenacity.retry(
             wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
             stop=tenacity.stop_after_delay(300),
@@ -54,6 +63,12 @@ class QemuCommands(abc.ABC):
                 stop=tenacity.stop_after_delay(300),
             )
             async def qemu_agent_reachable() -> None:
+                if press_enter_at_grub:
+                    await self.async_proxmox.request(
+                        "PUT",
+                        f"/nodes/{self.node}/qemu/{vm_id}/sendkey",
+                        json={"key": "ret"},
+                    )
                 await self.async_proxmox.ping_qemu_agent(self.node, vm_id)
 
             with trace_action(
@@ -116,7 +131,9 @@ class QemuCommands(abc.ABC):
             next_available_vm_id = 100
         return next_available_vm_id
 
-    async def start_and_await(self, vm_id: int) -> None:
+    async def start_and_await(
+        self, vm_id: int, press_enter_at_grub: bool = False
+    ) -> None:
         await self.async_proxmox.request(
             "POST",
             f"/nodes/{self.node}/qemu/{vm_id}/status/start",
@@ -125,6 +142,7 @@ class QemuCommands(abc.ABC):
         await self.await_vm(
             vm_id=vm_id,
             is_sandbox=True,
+            press_enter_at_grub=press_enter_at_grub,
         )
 
     def _convert_sdn_vnet_aliases(
@@ -214,7 +232,8 @@ class QemuCommands(abc.ABC):
 
                 await self.task_wrapper.do_action_and_wait_for_tasks(update_network)
 
-                await self.start_and_await(new_vm_id)
+                press_enter_at_grub = vm_config.vm_source_config.built_in == "kali"
+                await self.start_and_await(new_vm_id, press_enter_at_grub)
             else:
                 raise NotImplementedError(
                     f"Not supported: {vm_config.vm_source_config.built_in=}"

@@ -59,7 +59,7 @@ sandbox=SandboxEnvironmentSpec(
             # A virtual machine that this provider will install and configure automatically.
             VmConfig(
                 vm_source_config=VmSourceConfig(
-                    built_in="ubuntu24.04"
+                    built_in="ubuntu24.04" # currently supported: "ubuntu24.04" or "kali"; see schema.py
                 )
             ),
             # A virtual machine to restore from backup.

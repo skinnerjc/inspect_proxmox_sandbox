@@ -452,7 +452,7 @@ runcmd:
     async def ensure_exists_kali(self, storage: str, next_available_vm_id: int) -> None:
         built_in = "kali"
 
-        filename = "kali-linux-2024.4-live-everything-amd64.iso"
+        filename = "kali-linux-2024.4-live-amd64.iso"
 
         if await self.content_exists(storage, filename):
             self.logger.debug("Kali ISO already uploaded")
@@ -468,7 +468,7 @@ runcmd:
                     json={
                         "content": "iso",
                         "filename": filename,
-                        "url": f"http://10.0.2.2:8000/{filename}",
+                        "url": f"https://cdimage.kali.org/kali-2024.4/{filename}",
                     },
                 )
 
@@ -477,7 +477,7 @@ runcmd:
                     stop=tenacity.stop_after_delay(300),
                 )
                 async def upload_complete() -> None:
-                    if not await self.content_exists(filename):
+                    if not await self.content_exists(storage, filename):
                         raise ValueError("ISO upload not yet complete")
 
                 await upload_complete()
@@ -524,6 +524,8 @@ runcmd:
                 )
 
             await update_tags()
+
+            # no need to boot up a live CD, it's stateless, so go straight to converting to a template
 
             await self.async_proxmox.request(
                 "POST",
