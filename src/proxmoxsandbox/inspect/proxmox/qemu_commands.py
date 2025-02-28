@@ -218,27 +218,7 @@ class QemuCommands(abc.ABC):
 
                 await create_clone()
 
-                async def update_network() -> None:
-                    network_update_json = {
-                        "tags": ""
-                    }  # remove the tag as that's only for the template
-                    if len(vm_config.vnet_aliases) > 0:
-                        alias_mapping = self._convert_sdn_vnet_aliases(sdn_vnet_aliases)
-                        for i, vnet_alias in enumerate(vm_config.vnet_aliases):
-                            network_update_json[f"net{i}"] = (
-                                f"virtio,bridge={alias_mapping[vnet_alias]}"
-                            )
-                    else:
-                        first_vnet_id = sdn_vnet_aliases[0][0]
-                        network_update_json["net0"] = f"virtio,bridge={first_vnet_id}"
-
-                    await self.async_proxmox.request(
-                        "POST",
-                        f"/nodes/{self.node}/qemu/{new_vm_id}/config",
-                        json=network_update_json,
-                    )
-
-                await self.task_wrapper.do_action_and_wait_for_tasks(update_network)
+                await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
 
                 press_enter_at_grub = vm_config.vm_source_config.built_in == "kali"
                 await self.start_and_await(new_vm_id, press_enter_at_grub)
@@ -295,6 +275,8 @@ class QemuCommands(abc.ABC):
                         "POST", f"/nodes/{self.node}/qemu", json=json_for_create
                     )
 
+                await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
+
                 await self.start_and_await(
                     vm_id=new_vm_id,
                     is_sandbox=vm_config.is_sandbox,
@@ -307,3 +289,28 @@ class QemuCommands(abc.ABC):
         if new_vm_id is None:
             raise ValueError("No VM ID?")
         return new_vm_id
+
+    async def configure_network(
+        self, vm_config: VmConfig, sdn_vnet_aliases, vm_id: int
+    ) -> None:
+        async def update_network() -> None:
+            network_update_json = {
+                "tags": ""
+            }  # remove the tag as that's only for the template TODO - move this
+            if len(vm_config.vnet_aliases) > 0:
+                alias_mapping = self._convert_sdn_vnet_aliases(sdn_vnet_aliases)
+                for i, vnet_alias in enumerate(vm_config.vnet_aliases):
+                    network_update_json[f"net{i}"] = (
+                        f"virtio,bridge={alias_mapping[vnet_alias]}"
+                    )
+            else:
+                first_vnet_id = sdn_vnet_aliases[0][0]
+                network_update_json["net0"] = f"virtio,bridge={first_vnet_id}"
+
+            await self.async_proxmox.request(
+                "POST",
+                f"/nodes/{self.node}/qemu/{vm_id}/config",
+                json=network_update_json,
+            )
+
+        await self.task_wrapper.do_action_and_wait_for_tasks(update_network)
