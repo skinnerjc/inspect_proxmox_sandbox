@@ -68,6 +68,18 @@ sandbox=SandboxEnvironmentSpec(
                     existing_backup_name="vzdump-qemu-[vm id]-[datestamp of backup].vma.zst"
                 ),
             ),
+            # A virtual machine from a local OVA
+            VmConfig(
+                vm_source_config=VmSourceConfig(
+                    ova=Path("./tests/oVirtTinyCore64-13.11.ova")
+                ),
+            ),
+            # A virtual machine from a hosted OVA
+            VmConfig(
+                vm_source_config=VmSourceConfig(
+                    ova=HttpUrl("https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.ova")
+                ),
+            ),
             # A virtual machine that exists in the eval sample, but is not a sandbox
             VmConfig(
                 # ... snip ...

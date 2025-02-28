@@ -349,7 +349,7 @@ runcmd:
 
             await update_tags()
 
-            await self.qemu_commands.start_and_await(next_available_vm_id)
+            await self.qemu_commands.start_and_await(vm_id=next_available_vm_id, is_sandbox=True, press_enter_at_grub=False)
 
             # now wait for cloud-init to finish
 

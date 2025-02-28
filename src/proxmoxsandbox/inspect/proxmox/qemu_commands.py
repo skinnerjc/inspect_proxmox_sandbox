@@ -1,9 +1,12 @@
 import abc
+import tarfile
 from logging import getLogger
-from typing import Dict, Tuple, List
+from pathlib import Path
+from typing import Dict, List, Tuple
 
 import tenacity
 from inspect_ai.util import trace_action
+from pydantic.networks import HttpUrl
 
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox.inspect.proxmox.storage_commands import StorageCommands
@@ -13,10 +16,6 @@ from proxmoxsandbox.inspect.schema import (
 )
 
 
-from pydantic.networks import HttpUrl
-from pathlib import Path
-
-
 class QemuCommands(abc.ABC):
     logger = getLogger(__name__)
 
@@ -24,13 +23,15 @@ class QemuCommands(abc.ABC):
 
     async_proxmox: AsyncProxmoxAPI
     task_wrapper: TaskWrapper
+    storage: str  # TODO disambiguate that this is for images rather than VM disks which continue to live in local-lvm
     storage_commands: StorageCommands
     node: str
 
     def __init__(self, async_proxmox: AsyncProxmoxAPI, node: str):
         self.async_proxmox = async_proxmox
         self.task_wrapper = TaskWrapper(async_proxmox)
-        self.storage_commands = StorageCommands(async_proxmox, node, "local")
+        self.storage = "local"
+        self.storage_commands = StorageCommands(async_proxmox, node, self.storage)
         self.node = node
 
     async def await_vm(
@@ -139,7 +140,7 @@ class QemuCommands(abc.ABC):
         return next_available_vm_id
 
     async def start_and_await(
-        self, vm_id: int, press_enter_at_grub: bool = False
+        self, vm_id: int, is_sandbox: bool = True, press_enter_at_grub: bool = False
     ) -> None:
         await self.async_proxmox.request(
             "POST",
@@ -148,7 +149,7 @@ class QemuCommands(abc.ABC):
 
         await self.await_vm(
             vm_id=vm_id,
-            is_sandbox=True,
+            is_sandbox=is_sandbox,
             press_enter_at_grub=press_enter_at_grub,
         )
 
@@ -256,10 +257,53 @@ class QemuCommands(abc.ABC):
                     filename=vm_config.vm_source_config.ova.name,
                     file_type="import",
                 )
+
+                json_for_create = {
+                    "node": self.node,
+                    "cpu": "host",
+                    "memory": 2048,
+                    "cores": 2,
+                    "ostype": "l26",
+                    "scsihw": "virtio-scsi-single",
+                    "start": False,
+                    "agent": "enabled=1",
+                }
+
+                vmdks = []
+                with tarfile.open(vm_config.vm_source_config.ova, "r") as tar:
+                    # Get the list of member names
+                    file_list = tar.getnames()
+
+                    for file_name in file_list:
+                        if file_name.endswith(".vmdk"):
+                            vmdks.append(file_name)
+
+                for i, vmdk in enumerate(vmdks):
+                    json_for_create[f"scsi{i}"] = (
+                        f"local-lvm:0,import-from={self.storage}:import/{vm_config.vm_source_config.ova.name}/{vmdk},format=qcow2,cache=writeback"
+                    )
+
+                new_vm_id = await self.find_next_available_vm_id()
+                json_for_create["vmid"] = new_vm_id
+
+                with trace_action(
+                    self.logger,
+                    self.TRACE_NAME,
+                    f"create VM from OVA {new_vm_id=}",
+                ):
+                    await self.async_proxmox.request(
+                        "POST", f"/nodes/{self.node}/qemu", json=json_for_create
+                    )
+
+                await self.start_and_await(
+                    vm_id=new_vm_id,
+                    is_sandbox=vm_config.is_sandbox,
+                    press_enter_at_grub=False,
+                )
             else:
                 raise NotImplementedError(
                     f"Not supported: {type(vm_config.vm_source_config.ova)}"
-                )               
+                )
         if new_vm_id is None:
             raise ValueError("No VM ID?")
         return new_vm_id

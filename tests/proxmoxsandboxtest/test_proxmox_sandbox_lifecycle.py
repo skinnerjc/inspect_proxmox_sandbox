@@ -184,7 +184,7 @@ async def test_ova() -> None:
             ]
         )
         assert uname_result.success, f"Failed to run uname: {uname_result=}"
-        assert "Tiny" in uname_result.stdout, (
+        assert "tinycore" in uname_result.stdout, (
             f"Unexpected result of uname: {uname_result.stdout=}"
         )
     finally:
