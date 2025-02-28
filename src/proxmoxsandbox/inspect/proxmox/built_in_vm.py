@@ -162,33 +162,8 @@ runcmd:
 
         iso_data = iso_buffer.getvalue()
         filename = f"vm-{vm_id}-cl00udinit.iso"
-
-        # Create the multipart form-data manually
-        import uuid
-
-        boundary = str(uuid.uuid4())
-
-        # Construct the multipart form-data payload
-        payload = (
-            f"--{boundary}\r\n"
-            f'Content-Disposition: form-data; name="content"\r\n\r\niso\r\n'
-            f"--{boundary}\r\n"
-            f'Content-Disposition: form-data; name="filename"; filename="{filename}"\r\n'
-            # f"Content-Type: application/x-iso9660-image\r\n"
-            f"Content-Length: {len(iso_data)}\r\n\r\n"
-        ).encode("us-ascii")
-
-        payload += iso_data + f"\r\n--{boundary}--\r\n".encode("us-ascii")
-
-        async def upload_cloudinit_iso() -> None:
-            await self.async_proxmox.request(
-                "POST",
-                f"/nodes/{self.node}/storage/{storage}/upload",
-                content=payload,
-                content_type=f"multipart/form-data; boundary={boundary}",
-            )
-
-        await self.task_wrapper.do_action_and_wait_for_tasks(upload_cloudinit_iso)
+        
+        await self.upload_iso_to_storage(storage, iso_data, filename)
 
         @tenacity.retry(
             wait=tenacity.wait_exponential(min=1, exp_base=1.3),
@@ -202,6 +177,46 @@ runcmd:
             )
 
         await attach_to_vm()
+
+    async def upload_iso_to_storage(
+        self,
+        storage: str,
+        iso_data: bytes,
+        filename: str,
+    ) -> None:
+        """
+        Uploads an ISO file to Proxmox storage.
+        
+        Args:
+            storage: The storage name in Proxmox
+            iso_data: The binary content of the ISO file
+            filename: The filename to use for the ISO in Proxmox storage
+        """
+        import uuid
+
+        boundary = str(uuid.uuid4())
+
+        # Construct the multipart form-data payload
+        payload = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="content"\r\n\r\niso\r\n'
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="filename"; filename="{filename}"\r\n'
+            f"Content-Length: {len(iso_data)}\r\n\r\n"
+        ).encode("us-ascii")
+
+        payload += iso_data + f"\r\n--{boundary}--\r\n".encode("us-ascii")
+
+        async def upload_iso() -> None:
+            await self.async_proxmox.request(
+                "POST",
+                f"/nodes/{self.node}/storage/{storage}/upload",
+                content=payload,
+                content_type=f"multipart/form-data; boundary={boundary}",
+            )
+
+        await self.task_wrapper.do_action_and_wait_for_tasks(upload_iso)
+
 
     async def known_builtins(self) -> Dict[str, int]:
         existing_vms = await self.qemu_commands.list_vms()
