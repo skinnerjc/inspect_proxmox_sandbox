@@ -3,7 +3,8 @@ from ipaddress import ip_address, ip_network
 from typing import Annotated, Literal, Optional, Tuple
 
 from pydantic import BaseModel, Field, model_validator
-from pydantic.networks import IPvAnyAddress, IPvAnyNetwork
+from pydantic.networks import IPvAnyAddress, IPvAnyNetwork, HttpUrl
+from pathlib import Path
 
 
 class DhcpRange(BaseModel, frozen=True):
@@ -64,8 +65,10 @@ class VmSourceConfig(BaseModel, frozen=True):
     existing_vm_template_tag: str | None = (
         None  # if the VM exists as a template with this tag, clone it from that - TODO, not yet implemented
     )
-    existing_ova_name: str | None = (
-        None  # otherwise, the VM will be created from this OVA - TODO, not yet implemented
+    ova: Path | HttpUrl | None = (
+        None  # otherwise, the VM will be created from this OVA
+        # If you pass a Path, the OVA will be uploaded from a local file.
+        # If you pass a URL, the OVA will be downloaded on the Proxmox host.
     )
     existing_backup_name: str | None = (
         None  # otherwise, the VM will be created from this backup
@@ -80,7 +83,7 @@ class VmSourceConfig(BaseModel, frozen=True):
             name
             for name, value in {
                 "existing_vm_template_tag": self.existing_vm_template_tag,
-                "existing_ova_name": self.existing_ova_name,
+                "ova": self.ova,
                 "existing_backup_name": self.existing_backup_name,
                 "built_in": self.built_in,
             }.items()

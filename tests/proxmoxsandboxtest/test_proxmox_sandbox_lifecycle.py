@@ -1,3 +1,4 @@
+from pathlib import Path
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
 from proxmoxsandbox.inspect.schema import (
@@ -11,6 +12,9 @@ from proxmoxsandboxtest.proxmox_sandbox_utils import (
 )
 
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
+
+
+CURRENT_DIR = Path(__file__).parent
 
 
 async def test_smoke() -> None:
@@ -149,6 +153,38 @@ async def test_kali() -> None:
         )
         assert uname_result.success, f"Failed to run uname: {uname_result=}"
         assert "Kali" in uname_result.stdout, (
+            f"Unexpected result of uname: {uname_result.stdout=}"
+        )
+    finally:
+        await ProxmoxSandboxEnvironment.sample_cleanup(
+            task_name="unused",
+            config=sandbox_env_config,
+            environments=envs_dict,
+            interrupted=False,
+        )
+
+
+async def test_ova() -> None:
+    envs_dict = {}
+    sandbox_env_config = ProxmoxSandboxEnvironmentConfig(
+        vms_config=(
+            VmConfig(
+                vm_source_config=VmSourceConfig(
+                    ova=CURRENT_DIR / ".." / "oVirtTinyCore64-13.11.ova"
+                )
+            ),
+        )
+    )
+    try:
+        task_name, envs_dict = await setup_sandbox("tcova", sandbox_env_config)
+        uname_result = await envs_dict["default"].exec(
+            [
+                "uname",
+                "-a",
+            ]
+        )
+        assert uname_result.success, f"Failed to run uname: {uname_result=}"
+        assert "Tiny" in uname_result.stdout, (
             f"Unexpected result of uname: {uname_result.stdout=}"
         )
     finally:
