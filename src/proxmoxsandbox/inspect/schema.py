@@ -27,7 +27,7 @@ class VnetConfig(BaseModel, frozen=True):
         # original regex (?^i:[\(\)-_.\w\d\s]{0,256}) but that's not especially Python-compatible
         Annotated[str, Field(pattern=r"[()-_.[a-z][A-Z][0-9]\s]{0,256}")]
     ] = None
-    subnets: Tuple[SubnetConfig, ...]
+    subnets: Tuple[SubnetConfig, ...] = ()
 
 
 class SdnConfig(BaseModel, frozen=True):
