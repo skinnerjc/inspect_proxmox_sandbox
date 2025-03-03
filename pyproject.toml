@@ -13,6 +13,7 @@ dependencies = [
     "httpx>=0.28.1",
     "pydantic>=2.10.6",
     "pycdlib>=1.14.0",
+    "pydantic-extra-types>=2.10.2",
 ]
 
 [project.entry-points."inspect_ai"]

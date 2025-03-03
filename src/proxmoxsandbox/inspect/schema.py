@@ -1,7 +1,7 @@
 import os
 from ipaddress import ip_address, ip_network
 from typing import Annotated, Literal, Optional, Tuple
-
+from pydantic_extra_types.mac_address import MacAddress
 from pydantic import BaseModel, Field, model_validator
 from pydantic.networks import IPvAnyAddress, IPvAnyNetwork, HttpUrl
 from pathlib import Path
@@ -98,12 +98,19 @@ class VmSourceConfig(BaseModel, frozen=True):
         return self
 
 
+class VmNicConfig(BaseModel, frozen=True):
+    vnet_alias: (
+        str  # TODO consider allowing this to be None, hence connecting to first VNet
+    )
+    mac: Optional[MacAddress] = None
+
+
 class VmConfig(BaseModel, frozen=True):
     vm_source_config: VmSourceConfig
     name: Optional[str] = None
-    vnet_aliases: Tuple[
-        str, ...
-    ] = ()  # if set, the VM will be connected to these VNets (one interface per VNet), otherwise it will just be connected to the first one
+    nics: Tuple[
+        VmNicConfig, ...
+    ] = ()  # if set, the VM will be connected to these VNets (one interface per VNet), otherwise it will just be connected to the first VNet
     is_sandbox: bool = True  # if True, the VM will show up as a sandbox. It must have the qemu-guest-agent installed
     uefi_boot: bool = False  # if True, the VM will boot in UEFI mode. In theory, this is already specified by OVA, but Proxmox doesn't seem to respect it.
 

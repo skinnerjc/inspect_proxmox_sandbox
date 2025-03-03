@@ -305,18 +305,23 @@ class QemuCommands(abc.ABC):
         return new_vm_id
 
     async def configure_network(
-        self, vm_config: VmConfig, sdn_vnet_aliases, vm_id: int
+        self,
+        vm_config: VmConfig,
+        sdn_vnet_aliases: List[Tuple[str, str | None]],
+        vm_id: int,
     ) -> None:
         async def update_network() -> None:
             network_update_json = {
                 "tags": ""
             }  # remove the tag as that's only for the template TODO - move this
-            if len(vm_config.vnet_aliases) > 0:
+            if len(vm_config.nics) > 0:
                 alias_mapping = self._convert_sdn_vnet_aliases(sdn_vnet_aliases)
-                for i, vnet_alias in enumerate(vm_config.vnet_aliases):
-                    network_update_json[f"net{i}"] = (
-                        f"virtio,bridge={alias_mapping[vnet_alias]}"
-                    )
+                for i, nic in enumerate(vm_config.nics):
+                    netx = f"virtio,bridge={alias_mapping[nic.vnet_alias]}"
+                    if nic.mac:
+                        netx += f",macaddr={nic.mac}"
+                    network_update_json[f"net{i}"] = netx
+
             else:
                 first_vnet_id = sdn_vnet_aliases[0][0]
                 network_update_json["net0"] = f"virtio,bridge={first_vnet_id}"
