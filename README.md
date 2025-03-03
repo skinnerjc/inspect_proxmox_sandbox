@@ -56,12 +56,14 @@ sandbox=SandboxEnvironmentSpec(
         # End config from environment
 
         vms_config=(
-            # A virtual machine that this provider will install and configure automatically.
             VmConfig(
+                # A virtual machine that this provider will install and configure automatically.
                 vm_source_config=VmSourceConfig(
                     built_in="ubuntu24.04" # currently supported: "ubuntu24.04" or "kali"; see schema.py
                 ),
-                name="romeo" # name is optional, but recommended - it will be shown in the Proxmox GUI
+                name="romeo", # name is optional, but recommended - it will be shown in the Proxmox GUI
+                ram_mb=512 # optional, default is 2048 MB
+                vcpus=4 # optional, default is 2. No attempt is made to check that this will fit in the Proxmox host.
             ),
             # A virtual machine to restore from backup.
             VmConfig(

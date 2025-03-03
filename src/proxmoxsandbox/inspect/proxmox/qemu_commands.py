@@ -8,7 +8,10 @@ import tenacity
 from inspect_ai.util import trace_action
 from pydantic.networks import HttpUrl
 
-from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.async_proxmox import (
+    AsyncProxmoxAPI,
+    ProxmoxJsonDataType,
+)
 from proxmoxsandbox.inspect.proxmox.storage_commands import StorageCommands
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
 from proxmoxsandbox.inspect.schema import (
@@ -180,6 +183,7 @@ class QemuCommands(abc.ABC):
                 self.TRACE_NAME,
                 f"create VM from backup {new_vm_id=}",
             ):
+                # todo other config
                 await self.async_proxmox.request(
                     "POST",
                     f"/nodes/{self.node}/qemu",
@@ -187,9 +191,6 @@ class QemuCommands(abc.ABC):
                         "vmid": new_vm_id,
                         "node": self.node,
                         "archive": f"/var/lib/vz/dump/{vm_config.vm_source_config.existing_backup_name}",
-                        "net0": f"virtio,bridge={vnet_id}",
-                        "start": True,
-                        "name": vm_config.name,
                     },
                 )
         elif vm_config.vm_source_config.built_in:
@@ -223,6 +224,15 @@ class QemuCommands(abc.ABC):
 
                 await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
 
+                other_update_json: ProxmoxJsonDataType = {}
+                self.other_config_json(vm_config, other_update_json)
+
+                await self.async_proxmox.request(
+                    "POST",
+                    f"/nodes/{self.node}/qemu/{new_vm_id}/config",
+                    json=other_update_json,
+                )
+
                 press_enter_at_grub = vm_config.vm_source_config.built_in == "kali"
                 await self.start_and_await(new_vm_id, press_enter_at_grub)
             else:
@@ -241,23 +251,15 @@ class QemuCommands(abc.ABC):
                     file_type="import",
                 )
 
-                json_for_create = {
+                json_for_create: ProxmoxJsonDataType = {
                     "node": self.node,
                     "cpu": "host",
-                    "memory": 2048,
-                    "cores": 2,
                     "ostype": "l26",
                     "scsihw": "virtio-scsi-single",
                     "start": False,
-                    "bios": "ovmf" if vm_config.uefi_boot else "seabios",
-                    "agent": "enabled=1",  # TODO only if is_sandbox
-                    "name": vm_config.name,
                 }
 
-                if vm_config.uefi_boot:
-                    json_for_create["efidisk0"] = (
-                        "local-lvm:0,efitype=4m,pre-enrolled-keys=0"
-                    )
+                self.other_config_json(vm_config, json_for_create)
 
                 vmdks = []
                 with tarfile.open(vm_config.vm_source_config.ova, "r") as tar:
@@ -311,7 +313,7 @@ class QemuCommands(abc.ABC):
         vm_id: int,
     ) -> None:
         async def update_network() -> None:
-            network_update_json = {
+            network_update_json: ProxmoxJsonDataType = {
                 "tags": ""
             }  # remove the tag as that's only for the template TODO - move this
             if len(vm_config.nics) > 0:
@@ -333,3 +335,15 @@ class QemuCommands(abc.ABC):
             )
 
         await self.task_wrapper.do_action_and_wait_for_tasks(update_network)
+
+    def other_config_json(
+        self, vm_config: VmConfig, json_for_create: ProxmoxJsonDataType
+    ) -> None:
+        json_for_create["agent"] = f"enabled={1 if vm_config.is_sandbox else 0}"
+        json_for_create["memory"] = vm_config.ram_mb
+        json_for_create["cores"] = vm_config.vcpus
+        if vm_config.name is not None:
+            json_for_create["name"] = vm_config.name
+        if vm_config.uefi_boot:
+            json_for_create["efidisk0"] = "local-lvm:0,efitype=4m,pre-enrolled-keys=0"
+            json_for_create["bios"] = "ovmf"

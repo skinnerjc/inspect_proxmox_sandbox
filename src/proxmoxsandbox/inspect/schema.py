@@ -108,6 +108,8 @@ class VmNicConfig(BaseModel, frozen=True):
 class VmConfig(BaseModel, frozen=True):
     vm_source_config: VmSourceConfig
     name: Optional[str] = None
+    ram_mb: Optional[int] = 2048
+    vcpus: Optional[int] = 2
     nics: Tuple[
         VmNicConfig, ...
     ] = ()  # if set, the VM will be connected to these VNets (one interface per VNet), otherwise it will just be connected to the first VNet
