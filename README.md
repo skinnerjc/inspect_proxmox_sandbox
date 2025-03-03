@@ -60,7 +60,8 @@ sandbox=SandboxEnvironmentSpec(
             VmConfig(
                 vm_source_config=VmSourceConfig(
                     built_in="ubuntu24.04" # currently supported: "ubuntu24.04" or "kali"; see schema.py
-                )
+                ),
+                name="romeo" # name is optional, but recommended - it will be shown in the Proxmox GUI
             ),
             # A virtual machine to restore from backup.
             VmConfig(
@@ -68,29 +69,37 @@ sandbox=SandboxEnvironmentSpec(
                     existing_backup_name="vzdump-qemu-[vm id]-[datestamp of backup].vma.zst"
                 ),
             ),
-            # A virtual machine from a local OVA, which will be uploaded from here to the Proxmox server
+            # A virtual machine from a local OVA, which will be uploaded from here to the Proxmox server.
             VmConfig(
                 vm_source_config=VmSourceConfig(
                     ova=Path("./tests/oVirtTinyCore64-13.11.ova")
                 ),
             ),
-            # A virtual machine from a hosted OVA, which will be downloaded by the Proxmox server
+            # A virtual machine from a hosted OVA, which will be downloaded by the Proxmox server.
             VmConfig(
                 vm_source_config=VmSourceConfig(
                     ova=HttpUrl("https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.ova")
                 ),
             ),
-            # A virtual machine that exists in the eval sample, but is not a sandbox
+            # A virtual machine that exists in the eval sample, but is not a sandbox.
             VmConfig(
                 # ... snip ...
                 is_sandbox = False
             ),
-            # If you have more than one VNet, assign the VM to the VNet via vnet_aliases.
+            # If you have more than one VNet, assign the VM to the VNet via nics.
             # You can assign more than one, to give the VM more than one network interface.
             # If you leave this blank, your VM will be assigned to the first VNet.
             VmConfig(
                 # ... snip ...
-                vnet_aliases = ("my special vnet",)
+                nics=(
+                    VmNicConfig(
+                        # This alias *must* match the alias in one of the VnetConfigs
+                        vnet_alias="my special vnet",
+                        # Specifying a MAC address is optional - only needed if you
+                        # are doing fancy things with DHCP in your eval
+                        mac="00:16:3d:1d:eb:a0"
+                    ),
+                )
             ),
         ),
         # You will need a separate SDN per sample, or the VMs will be able to see each other
@@ -100,6 +109,7 @@ sandbox=SandboxEnvironmentSpec(
         sdn_config=SdnConfig(
             vnet_configs=(
                 VnetConfig(
+                    # You can leave subnets blank if you are handling IPAM yourself (e.g. with your own pfsense instance as a VM)
                     subnets=(
                         SubnetConfig(
                             cidr=ip_network("192.168.20.0/24"),
