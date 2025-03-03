@@ -4,7 +4,6 @@ from proxmoxsandboxtest.proxmox_sandbox_utils import (
     setup_sandbox,
 )
 
-from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
 from proxmoxsandbox.inspect.schema import (
     ProxmoxSandboxEnvironmentConfig,
     SdnConfig,
@@ -20,13 +19,8 @@ CURRENT_DIR = Path(__file__).parent
 async def test_crystal_peak(proxmox_api) -> None:
     envs_dict = {}
 
-    sdn_config = await InfraCommands(proxmox_api, node="proxmox").generate_sdn_config(
-        aliases=("with_ip",)
-    )
-
     sdn_config = SdnConfig(
         vnet_configs=(
-            sdn_config.vnet_configs[0],
             VnetConfig(alias="lan-local"),
             VnetConfig(alias="lan-acmenet-ext"),
             VnetConfig(alias="lan-acmenet-int"),
@@ -38,7 +32,7 @@ async def test_crystal_peak(proxmox_api) -> None:
             VnetConfig(alias="isp-link-3"),
         ),
         # Set use_pve_ipam_dnsnmasq to True if you want your instances to be able to access the internet
-        use_pve_ipam_dnsnmasq=True,
+        use_pve_ipam_dnsnmasq=False,
     )
 
     # class VmNicConfig(BaseModel, frozen=True):
@@ -49,7 +43,8 @@ async def test_crystal_peak(proxmox_api) -> None:
         VmConfig(
             vm_source_config=VmSourceConfig(built_in="ubuntu24.04"),
             name="sneak",
-            nics=(VmNicConfig(vnet_alias="with_ip"),),
+            nics=(VmNicConfig(vnet_alias="lan-local"),),
+            is_sandbox=True,
         ),
         VmConfig(
             vm_source_config=VmSourceConfig(
