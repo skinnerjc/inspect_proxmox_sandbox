@@ -245,9 +245,9 @@ async def test_everything(proxmox_api) -> None:
         )
     finally:
         pass
-        # await ProxmoxSandboxEnvironment.sample_cleanup(
-        #     task_name="unused",
-        #     config=sandbox_env_config,
-        #     environments=envs_dict,
-        #     interrupted=False,
-        # )
+        await ProxmoxSandboxEnvironment.sample_cleanup(
+            task_name="unused",
+            config=sandbox_env_config,
+            environments=envs_dict,
+            interrupted=False,
+        )
