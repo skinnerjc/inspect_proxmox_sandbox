@@ -172,6 +172,8 @@ class QemuCommands(abc.ABC):
         new_vm_id: int | None = None
 
         if vm_config.vm_source_config.existing_backup_name:
+            # TODO this branch is current broken
+            raise NotImplementedError()
             new_vm_id = await self.find_next_available_vm_id()
             with trace_action(
                 self.logger,
@@ -187,6 +189,7 @@ class QemuCommands(abc.ABC):
                         "archive": f"/var/lib/vz/dump/{vm_config.vm_source_config.existing_backup_name}",
                         "net0": f"virtio,bridge={vnet_id}",
                         "start": True,
+                        "name": vm_config.name,
                     },
                 )
         elif vm_config.vm_source_config.built_in:
@@ -213,7 +216,7 @@ class QemuCommands(abc.ABC):
                     await self.async_proxmox.request(
                         "POST",
                         f"/nodes/{self.node}/qemu/{vm_id_to_clone}/clone",
-                        json={"newid": new_vm_id, "full": 0},
+                        json={"newid": new_vm_id, "full": 0, "name": vm_config.name},
                     )
 
                 await create_clone()
@@ -246,8 +249,9 @@ class QemuCommands(abc.ABC):
                     "ostype": "l26",
                     "scsihw": "virtio-scsi-single",
                     "start": False,
-                    "bios" : "ovmf" if vm_config.uefi_boot else "seabios",
-                    "agent": "enabled=1", # TODO only if is_sandbox
+                    "bios": "ovmf" if vm_config.uefi_boot else "seabios",
+                    "agent": "enabled=1",  # TODO only if is_sandbox
+                    "name": vm_config.name,
                 }
 
                 if vm_config.uefi_boot:
@@ -277,10 +281,12 @@ class QemuCommands(abc.ABC):
                     self.TRACE_NAME,
                     f"create VM from OVA {new_vm_id=}",
                 ):
+
                     async def create() -> None:
                         await self.async_proxmox.request(
                             "POST", f"/nodes/{self.node}/qemu", json=json_for_create
                         )
+
                     await self.task_wrapper.do_action_and_wait_for_tasks(create)
 
                 await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)

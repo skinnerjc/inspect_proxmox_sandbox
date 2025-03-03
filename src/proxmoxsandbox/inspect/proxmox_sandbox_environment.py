@@ -523,4 +523,6 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             )
 
         await self.task_wrapper.do_action_and_wait_for_tasks(snapshotter)
-        await self.infra_commands.await_vm(vm_id=self.vm_id, is_sandbox=True)
+        await self.infra_commands.qemu_commands.await_vm(
+            vm_id=self.vm_id, is_sandbox=True
+        )

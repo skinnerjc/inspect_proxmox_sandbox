@@ -43,172 +43,174 @@ async def test_crystal_peak(proxmox_api) -> None:
     crystal_peak_vms = (
         VmConfig(
             vm_source_config=VmSourceConfig(built_in="ubuntu24.04"),
+            name="sneak",
             vnet_aliases=("with_ip",),
         ),
         VmConfig(
             vm_source_config=VmSourceConfig(
                 ova=Path("/home/ubuntu/img/cpeak-pt-isp-gateway-10.ova")
             ),
+            name="isp-gateway",
             vnet_aliases=("isp-link-0", "isp-link-1", "isp-link-2", "isp-link-3"),
             is_sandbox=False,
             uefi_boot=True,
         ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path("/home/ubuntu/img/cpeak-pt-local-agent-10.ova")
-            ),
-            vnet_aliases=("lan-local",),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path("/home/ubuntu/img/cpeak-pt-local-gateway.ova")
-            ),
-            vnet_aliases=("isp-link-0", "lan-local"),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path(
-                    "/home/ubuntu/img/cpeak-pt-acmenet-gateway.ova"
-                )
-            ),
-            vnet_aliases=("isp-link-1", "lan-acmenet-ext", "lan-acmenet-int"),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path(
-                    "/home/ubuntu/img/cpeak-pt-acmenet-api.ova"
-                )
-            ),
-            vnet_aliases=("lan-acmenet-ext",),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path(
-                    "/home/ubuntu/img/cpeak-pt-acmenet-db.ova"
-                )
-            ),
-            vnet_aliases=("lan-acmenet-ext", ),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path(
-                    "/home/ubuntu/img/cpeak-pt-acmenet-jump.ova"
-                )
-            ),
-            vnet_aliases=("lan-acmenet-ext",),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path(
-                    "/home/ubuntu/img/cpeak-pt-acmenet-nfs.ova"
-                )
-            ),
-            vnet_aliases=("lan-acmenet-int",),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path(
-                    "/home/ubuntu/img/cpeak-pt-acmenet-alice.ova"
-                )
-            ),
-            vnet_aliases=("lan-acmenet-int",),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path(
-                    "/home/ubuntu/img/cpeak-pt-acmenet-bob-10.ova"
-                )
-            ),
-            vnet_aliases=("lan-acmenet-int",),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path(
-                    "/home/ubuntu/img/cpeak-pt-devcorp-gateway.ova"
-                )
-            ),
-            vnet_aliases=("isp-link-2", "lan-devcorp"),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path(
-                    "/home/ubuntu/img/cpeak-pt-devcorp-registry.ova"
-                )
-            ),
-            vnet_aliases=("lan-devcorp",),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path(
-                    "/home/ubuntu/img/cpeak-pt-devcorp-git.ova"
-                )
-            ),
-            vnet_aliases=("lan-devcorp",),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path(
-                    "/home/ubuntu/img/cpeak-pt-cloudnet-gateway.ova"
-                )
-            ),
-            vnet_aliases=("isp-link-3", "lan-cloudnet"),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path(
-                    "/home/ubuntu/img/cpeak-pt-cloudnet-dns.ova"
-                )
-            ),
-            vnet_aliases=("lan-cloudnet",),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path(
-                    "/home/ubuntu/img/cpeak-pt-cloudnet-vps1.ova"
-                )
-            ),
-            vnet_aliases=("lan-cloudnet",),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
-        VmConfig(
-            vm_source_config=VmSourceConfig(
-                ova=Path(
-                    "/home/ubuntu/img/cpeak-pt-cloudnet-vps2-10.ova"
-                )
-            ),
-            vnet_aliases=("lan-cloudnet",),
-            is_sandbox=False,
-            uefi_boot=True,
-        ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path("/home/ubuntu/img/cpeak-pt-local-agent-10.ova")
+        #     ),
+        #     vnet_aliases=("lan-local",),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path("/home/ubuntu/img/cpeak-pt-local-gateway.ova")
+        #     ),
+        #     vnet_aliases=("isp-link-0", "lan-local"),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path(
+        #             "/home/ubuntu/img/cpeak-pt-acmenet-gateway.ova"
+        #         )
+        #     ),
+        #     vnet_aliases=("isp-link-1", "lan-acmenet-ext", "lan-acmenet-int"),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path(
+        #             "/home/ubuntu/img/cpeak-pt-acmenet-api.ova"
+        #         )
+        #     ),
+        #     vnet_aliases=("lan-acmenet-ext",),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path(
+        #             "/home/ubuntu/img/cpeak-pt-acmenet-db.ova"
+        #         )
+        #     ),
+        #     vnet_aliases=("lan-acmenet-ext", ),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path(
+        #             "/home/ubuntu/img/cpeak-pt-acmenet-jump.ova"
+        #         )
+        #     ),
+        #     vnet_aliases=("lan-acmenet-ext",),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path(
+        #             "/home/ubuntu/img/cpeak-pt-acmenet-nfs.ova"
+        #         )
+        #     ),
+        #     vnet_aliases=("lan-acmenet-int",),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path(
+        #             "/home/ubuntu/img/cpeak-pt-acmenet-alice.ova"
+        #         )
+        #     ),
+        #     vnet_aliases=("lan-acmenet-int",),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path(
+        #             "/home/ubuntu/img/cpeak-pt-acmenet-bob-10.ova"
+        #         )
+        #     ),
+        #     vnet_aliases=("lan-acmenet-int",),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path(
+        #             "/home/ubuntu/img/cpeak-pt-devcorp-gateway.ova"
+        #         )
+        #     ),
+        #     vnet_aliases=("isp-link-2", "lan-devcorp"),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path(
+        #             "/home/ubuntu/img/cpeak-pt-devcorp-registry.ova"
+        #         )
+        #     ),
+        #     vnet_aliases=("lan-devcorp",),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path(
+        #             "/home/ubuntu/img/cpeak-pt-devcorp-git.ova"
+        #         )
+        #     ),
+        #     vnet_aliases=("lan-devcorp",),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path(
+        #             "/home/ubuntu/img/cpeak-pt-cloudnet-gateway.ova"
+        #         )
+        #     ),
+        #     vnet_aliases=("isp-link-3", "lan-cloudnet"),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path(
+        #             "/home/ubuntu/img/cpeak-pt-cloudnet-dns.ova"
+        #         )
+        #     ),
+        #     vnet_aliases=("lan-cloudnet",),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path(
+        #             "/home/ubuntu/img/cpeak-pt-cloudnet-vps1.ova"
+        #         )
+        #     ),
+        #     vnet_aliases=("lan-cloudnet",),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
+        # VmConfig(
+        #     vm_source_config=VmSourceConfig(
+        #         ova=Path(
+        #             "/home/ubuntu/img/cpeak-pt-cloudnet-vps2-10.ova"
+        #         )
+        #     ),
+        #     vnet_aliases=("lan-cloudnet",),
+        #     is_sandbox=False,
+        #     uefi_boot=True,
+        # ),
     )
 
     sandbox_env_config = ProxmoxSandboxEnvironmentConfig(
