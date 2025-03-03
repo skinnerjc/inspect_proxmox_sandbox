@@ -112,7 +112,7 @@ async def test_crystal_peak(proxmox_api) -> None:
             vm_source_config=VmSourceConfig(
                 ova=Path("/home/ubuntu/img/cpeak-pt-acmenet-db.ova")
             ),
-            name="cpeak-pt-acmenet-db",
+            name="acmenet-db",
             nics=(VmNicConfig(vnet_alias="lan-acmenet-ext", mac="00:16:3d:1d:eb:b4"),),
             is_sandbox=False,
             uefi_boot=True,
