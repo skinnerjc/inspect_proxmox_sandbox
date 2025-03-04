@@ -200,18 +200,27 @@ runcmd:
         storage = "local"
 
         if vm_source_config.built_in == "ubuntu24.04":
-            await self.ensure_exists_ubuntu_24_04(
+            await self.ensure_exists_from_ova(
                 storage=storage,
                 next_available_vm_id=next_available_vm_id,
                 built_in=vm_source_config.built_in,
+                ova_name=self.UBUNTU_24_04_OVA_FILENAME,
+                ova_source_url="https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.ova",
+                ova_vmdk_filename="ubuntu-noble-24.04-cloudimg.vmdk",
             )
         else:
             raise ValueError(f"Unknown built-in {vm_source_config.built_in}")
 
-    async def ensure_exists_ubuntu_24_04(
-        self, storage: str, next_available_vm_id: int, built_in: str
+    async def ensure_exists_from_ova(
+        self,
+        storage: str,
+        next_available_vm_id: int,
+        built_in: str,
+        ova_name: str,
+        ova_source_url: str,
+        ova_vmdk_filename: str,
     ) -> None:
-        if await self.content_exists(storage, self.UBUNTU_24_04_OVA_FILENAME):
+        if await self.content_exists(storage, ova_name):
             self.logger.debug(f"OVA {built_in} already uploaded")
         else:
             with trace_action(
@@ -224,8 +233,8 @@ runcmd:
                     f"/nodes/{self.node}/storage/{storage}/download-url",
                     json={
                         "content": "import",
-                        "filename": self.UBUNTU_24_04_OVA_FILENAME,
-                        "url": "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.ova",
+                        "filename": ova_name,
+                        "url": ova_source_url,
                     },
                 )
 
@@ -234,9 +243,7 @@ runcmd:
                     stop=tenacity.stop_after_delay(300),
                 )
                 async def upload_complete() -> None:
-                    if not await self.content_exists(
-                        storage, self.UBUNTU_24_04_OVA_FILENAME
-                    ):
+                    if not await self.content_exists(storage, ova_name):
                         raise ValueError("OVA upload not yet complete")
 
                 await upload_complete()
@@ -292,7 +299,7 @@ runcmd:
                         "memory": 2048,
                         "cores": 2,
                         "ostype": "l26",
-                        "scsi0": f"local-lvm:0,import-from=local:import/{self.UBUNTU_24_04_OVA_FILENAME}/ubuntu-noble-24.04-cloudimg.vmdk,format=qcow2,cache=writeback",
+                        "scsi0": f"local-lvm:0,import-from=local:import/{ova_name}/{ova_vmdk_filename},format=qcow2,cache=writeback",
                         "scsihw": "virtio-scsi-single",
                         "net0": f"virtio,bridge={vnet_id}",
                         "start": False,
