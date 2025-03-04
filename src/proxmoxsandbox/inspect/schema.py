@@ -73,7 +73,11 @@ class VmSourceConfig(BaseModel, frozen=True):
     existing_backup_name: str | None = (
         None  # otherwise, the VM will be created from this backup
     )
-    built_in: Literal["ubuntu24.04", "debian12", "kali"] | None = (
+    # Ubuntu 24.04 is supported because an OVA is publicly available from a reliable source.
+    # Kali does not have such an OVA. There is no other way to upload a VM image to 
+    # Proxmox 8.3.x. Hence, Kali support here would require Kali to provide an OVA.
+    # The same goes for Debian.
+    built_in: Literal["ubuntu24.04"] | None = (
         None  # otherwise, the provider will attempt to create a VM suitable for a sandbox
     )
 

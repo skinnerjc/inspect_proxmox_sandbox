@@ -42,12 +42,7 @@ class QemuCommands(abc.ABC):
         vm_id: int,
         is_sandbox: bool,
         status_for_wait: str = "running",
-        press_enter_at_grub: bool = False,
     ) -> None:
-        if press_enter_at_grub and (not status_for_wait == "running" or not is_sandbox):
-            raise ValueError(
-                f"It makes no sense to have {press_enter_at_grub=} unless you are waiting for the VM to be running and it's a sandbox"
-            )
 
         @tenacity.retry(
             wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
@@ -74,12 +69,6 @@ class QemuCommands(abc.ABC):
                 stop=tenacity.stop_after_delay(300),
             )
             async def qemu_agent_reachable() -> None:
-                if press_enter_at_grub:
-                    await self.async_proxmox.request(
-                        "PUT",
-                        f"/nodes/{self.node}/qemu/{vm_id}/sendkey",
-                        json={"key": "ret"},
-                    )
                 await self.async_proxmox.ping_qemu_agent(self.node, vm_id)
 
             with trace_action(
@@ -143,7 +132,7 @@ class QemuCommands(abc.ABC):
         return next_available_vm_id
 
     async def start_and_await(
-        self, vm_id: int, is_sandbox: bool = True, press_enter_at_grub: bool = False
+        self, vm_id: int, is_sandbox: bool = True,
     ) -> None:
         await self.async_proxmox.request(
             "POST",
@@ -153,7 +142,6 @@ class QemuCommands(abc.ABC):
         await self.await_vm(
             vm_id=vm_id,
             is_sandbox=is_sandbox,
-            press_enter_at_grub=press_enter_at_grub,
         )
 
     def _convert_sdn_vnet_aliases(
@@ -194,7 +182,7 @@ class QemuCommands(abc.ABC):
                     },
                 )
         elif vm_config.vm_source_config.built_in:
-            if vm_config.vm_source_config.built_in in ["ubuntu24.04", "kali"]:
+            if vm_config.vm_source_config.built_in in ["ubuntu24.04"]:
                 vm_id_to_clone = built_in_vm_ids[vm_config.vm_source_config.built_in]
 
                 if vm_id_to_clone is None:
@@ -233,8 +221,7 @@ class QemuCommands(abc.ABC):
                     json=other_update_json,
                 )
 
-                press_enter_at_grub = vm_config.vm_source_config.built_in == "kali"
-                await self.start_and_await(new_vm_id, press_enter_at_grub)
+                await self.start_and_await(new_vm_id)
             else:
                 raise NotImplementedError(
                     f"Not supported: {vm_config.vm_source_config.built_in=}"
@@ -296,7 +283,6 @@ class QemuCommands(abc.ABC):
                 await self.start_and_await(
                     vm_id=new_vm_id,
                     is_sandbox=vm_config.is_sandbox,
-                    press_enter_at_grub=False,
                 )
             else:
                 raise NotImplementedError(

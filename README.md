@@ -59,7 +59,7 @@ sandbox=SandboxEnvironmentSpec(
             VmConfig(
                 # A virtual machine that this provider will install and configure automatically.
                 vm_source_config=VmSourceConfig(
-                    built_in="ubuntu24.04" # currently supported: "ubuntu24.04" or "kali"; see schema.py
+                    built_in="ubuntu24.04" # currently supported: "ubuntu24.04"; see schema.py
                 ),
                 name="romeo", # name is optional, but recommended - it will be shown in the Proxmox GUI
                 ram_mb=512 # optional, default is 2048 MB
@@ -178,7 +178,7 @@ including the running processes. See [snapshots.py](./src/proxmoxsandbox/experim
 - Normalize having a second pfSense VM as the default route for networking
 - Firewall off the SDN from the Proxmox server and from other SDNs
 - Support existing_vm_template_tag VM source
-- Add more built-in VMs (Debian)
+- Add more built-in VMs (Debian, Kali)
 - Support cloud-init for VM definition
 - Cache VM definition as tagged template VMs
 
