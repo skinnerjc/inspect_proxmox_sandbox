@@ -27,6 +27,8 @@ class BuiltInVM(abc.ABC):
     TRACE_NAME = "proxmox_built_in_vm"
     STATIC_SDN_START = "inspvm"
 
+    UBUNTU_24_04_OVA_FILENAME = "ubuntu24.04.ova"
+
     async_proxmox: AsyncProxmoxAPI
     qemu_commands: QemuCommands
     sdn_commands: SdnCommands
@@ -52,60 +54,6 @@ class BuiltInVM(abc.ABC):
 package_update: true
 packages:
   - qemu-guest-agent
-# from buildpack-deps Dockerfile
-  - autoconf
-  - automake
-  - bzip2
-  - default-libmysqlclient-dev
-  - dpkg-dev
-  - file
-  - g++
-  - gcc
-  - imagemagick
-  - libbz2-dev
-  - libc6-dev
-  - libcurl4-openssl-dev
-  - libdb-dev
-  - libevent-dev
-  - libffi-dev
-  - libgdbm-dev
-  - libglib2.0-dev
-  - libgmp-dev
-  - libjpeg-dev
-  - libkrb5-dev
-  - liblzma-dev
-  - libmagickcore-dev
-  - libmagickwand-dev
-  - libmaxminddb-dev
-  - libncurses-dev # changed from libncurses5-dev
-#   - libncursesw5-dev # not available (possibly related discussion https://github.com/cardano-foundation/developer-portal/issues/1364)
-  - libpng-dev
-  - libpq-dev
-  - libreadline-dev
-  - libsqlite3-dev
-  - libssl-dev
-  - libtool
-  - libwebp-dev
-  - libxml2-dev
-  - libxslt1-dev # changed from libxslt-dev
-  - libyaml-dev
-  - make
-  - patch
-  - unzip
-  - xz-utils
-  - zlib1g-dev
-# equivalent of python3.12-bookworm Dockerfile
-  - python3
-  - python3-pip
-  - python3-venv
-  - python-is-python3
-users:
-  - name: ubuntu
-    passwd: $6$rounds=4096$6ZjLzzWD9RGieC1y$8R5a/3Vwp3xr9ae9GVlCH0xGGofhp8xlKdddWRugOPhj3frUMr5g57x8t28JRFdS/scPl5AUwrTjah/BVe8dY1
-    lock_passwd: false
-    sudo: ALL=(ALL) NOPASSWD:ALL
-    groups: sudo
-
 runcmd:
   - [ systemctl, enable, qemu-guest-agent ]
   - [ systemctl, start, qemu-guest-agent ]
@@ -183,6 +131,28 @@ runcmd:
 
         await attach_to_vm()
 
+    # for test code only
+    async def clear_builtins(self) -> None:
+        async def inner_clear_builtins() -> None:
+            existing_content = await self.read_all_content(self.storage)
+            for content in existing_content:
+                if content["volid"] and content["volid"].endswith(
+                    self.UBUNTU_24_04_OVA_FILENAME
+                ):
+                    await self.async_proxmox.request(
+                        "DELETE",
+                        f"/nodes/{self.node}/storage/{self.storage}/content/{content['volid']}",
+                    )
+
+            existing_vms = await self.known_builtins()
+            for existing_vm in existing_vms:
+                await self.async_proxmox.request(
+                    "DELETE",
+                    f"/nodes/{self.node}/qemu/{existing_vms[existing_vm]}",
+                )
+
+        await self.task_wrapper.do_action_and_wait_for_tasks(inner_clear_builtins)
+
     async def known_builtins(self) -> Dict[str, int]:
         existing_vms = await self.qemu_commands.list_vms()
 
@@ -201,14 +171,19 @@ runcmd:
         return found_builtins
 
     async def content_exists(self, storage: str, content_name_end: str) -> bool:
-        existing_content = await self.async_proxmox.request(
-            "GET",
-            f"/nodes/{self.node}/storage/{storage}/content",
-        )
+        existing_content = await self.read_all_content(storage)
         return any(
             content["volid"] and content["volid"].endswith(content_name_end)
             for content in existing_content
         )
+
+    async def read_all_content(self, storage):
+        existing_content = await self.async_proxmox.request(
+            "GET",
+            f"/nodes/{self.node}/storage/{storage}/content",
+        )
+
+        return existing_content
 
     async def ensure_exists(
         self, vm_source_config: VmSourceConfig, known_buitins: Dict[str, int]
@@ -226,7 +201,9 @@ runcmd:
 
         if vm_source_config.built_in == "ubuntu24.04":
             await self.ensure_exists_ubuntu_24_04(
-                storage=storage, next_available_vm_id=next_available_vm_id
+                storage=storage,
+                next_available_vm_id=next_available_vm_id,
+                built_in=vm_source_config.built_in,
             )
         elif vm_source_config.built_in == "kali":
             await self.ensure_exists_kali(
@@ -236,11 +213,9 @@ runcmd:
             raise ValueError(f"Unknown built-in {vm_source_config.built_in}")
 
     async def ensure_exists_ubuntu_24_04(
-        self, storage: str, next_available_vm_id: int
+        self, storage: str, next_available_vm_id: int, built_in: str
     ) -> None:
-        built_in = "ubuntu24.04"
-
-        if await self.content_exists(storage, "/ubuntu24.04.ova"):
+        if await self.content_exists(storage, self.UBUNTU_24_04_OVA_FILENAME):
             self.logger.debug(f"OVA {built_in} already uploaded")
         else:
             with trace_action(
@@ -253,7 +228,7 @@ runcmd:
                     f"/nodes/{self.node}/storage/{storage}/download-url",
                     json={
                         "content": "import",
-                        "filename": "ubuntu24.04.ova",
+                        "filename": self.UBUNTU_24_04_OVA_FILENAME,
                         "url": "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.ova",
                     },
                 )
@@ -263,7 +238,9 @@ runcmd:
                     stop=tenacity.stop_after_delay(300),
                 )
                 async def upload_complete() -> None:
-                    if not await self.content_exists(storage, "/ubuntu24.04.ova"):
+                    if not await self.content_exists(
+                        storage, self.UBUNTU_24_04_OVA_FILENAME
+                    ):
                         raise ValueError("OVA upload not yet complete")
 
                 await upload_complete()
@@ -319,7 +296,7 @@ runcmd:
                         "memory": 2048,
                         "cores": 2,
                         "ostype": "l26",
-                        "scsi0": "local-lvm:0,import-from=local:import/ubuntu24.04.ova/ubuntu-noble-24.04-cloudimg.vmdk,format=qcow2,cache=writeback",
+                        "scsi0": f"local-lvm:0,import-from=local:import/{self.UBUNTU_24_04_OVA_FILENAME}/ubuntu-noble-24.04-cloudimg.vmdk,format=qcow2,cache=writeback",
                         "scsihw": "virtio-scsi-single",
                         "net0": f"virtio,bridge={vnet_id}",
                         "start": False,
@@ -349,7 +326,9 @@ runcmd:
 
             await update_tags()
 
-            await self.qemu_commands.start_and_await(vm_id=next_available_vm_id, is_sandbox=True, press_enter_at_grub=False)
+            await self.qemu_commands.start_and_await(
+                vm_id=next_available_vm_id, is_sandbox=True, press_enter_at_grub=False
+            )
 
             # now wait for cloud-init to finish
 
