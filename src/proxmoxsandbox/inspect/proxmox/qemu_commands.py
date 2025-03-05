@@ -200,36 +200,9 @@ class QemuCommands(abc.ABC):
 
                 # TODO: check "Import" is enabled for local storage
 
-                new_vm_id = await self.find_next_available_vm_id()
-
-                # now clone
-                @tenacity.retry(
-                    wait=tenacity.wait_exponential(min=1, exp_base=2),
-                    stop=tenacity.stop_after_attempt(4),
+                new_vm_id = await self.clone_vm_and_start(
+                    vm_config, vm_id_to_clone, sdn_vnet_aliases
                 )
-                # Sometimes fails with '500 Linked clone feature is not supported for 'local-lvm:vm-101-disk-0' (scsi0)'
-                # hence the retry decorator
-                async def create_clone() -> None:
-                    await self.async_proxmox.request(
-                        "POST",
-                        f"/nodes/{self.node}/qemu/{vm_id_to_clone}/clone",
-                        json={"newid": new_vm_id, "full": 0, "name": vm_config.name},
-                    )
-
-                await create_clone()
-
-                await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
-
-                other_update_json: ProxmoxJsonDataType = {}
-                self.other_config_json(vm_config, other_update_json)
-
-                await self.async_proxmox.request(
-                    "POST",
-                    f"/nodes/{self.node}/qemu/{new_vm_id}/config",
-                    json=other_update_json,
-                )
-
-                await self.start_and_await(new_vm_id)
             else:
                 raise NotImplementedError(
                     f"Not supported: {vm_config.vm_source_config.built_in=}"
@@ -331,6 +304,43 @@ class QemuCommands(abc.ABC):
             )
 
         await self.task_wrapper.do_action_and_wait_for_tasks(update_network)
+
+    async def clone_vm_and_start(
+        self,
+        vm_config: VmConfig,
+        vm_id_to_clone: int,
+        sdn_vnet_aliases: List[Tuple[str, str | None]],
+    ) -> int:
+        new_vm_id = await self.find_next_available_vm_id()
+
+        @tenacity.retry(
+            wait=tenacity.wait_exponential(min=1, exp_base=2),
+            stop=tenacity.stop_after_attempt(4),
+        )
+        # Sometimes fails with '500 Linked clone feature is not supported for 'local-lvm:vm-101-disk-0' (scsi0)'
+        # hence the retry decorator
+        async def create_clone() -> None:
+            await self.async_proxmox.request(
+                "POST",
+                f"/nodes/{self.node}/qemu/{vm_id_to_clone}/clone",
+                json={"newid": new_vm_id, "full": 0, "name": vm_config.name},
+            )
+
+        await create_clone()
+
+        await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
+
+        other_update_json: ProxmoxJsonDataType = {}
+        self.other_config_json(vm_config, other_update_json)
+
+        await self.async_proxmox.request(
+            "POST",
+            f"/nodes/{self.node}/qemu/{new_vm_id}/config",
+            json=other_update_json,
+        )
+
+        await self.start_and_await(new_vm_id)
+        return new_vm_id
 
     def other_config_json(
         self, vm_config: VmConfig, json_for_create: ProxmoxJsonDataType
