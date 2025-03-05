@@ -43,7 +43,6 @@ class QemuCommands(abc.ABC):
         is_sandbox: bool,
         status_for_wait: str = "running",
     ) -> None:
-
         @tenacity.retry(
             wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
             stop=tenacity.stop_after_delay(300),
@@ -132,7 +131,9 @@ class QemuCommands(abc.ABC):
         return next_available_vm_id
 
     async def start_and_await(
-        self, vm_id: int, is_sandbox: bool = True,
+        self,
+        vm_id: int,
+        is_sandbox: bool = True,
     ) -> None:
         await self.async_proxmox.request(
             "POST",
@@ -163,24 +164,31 @@ class QemuCommands(abc.ABC):
         new_vm_id: int | None = None
 
         if vm_config.vm_source_config.existing_backup_name:
-            # TODO this branch is current broken
-            raise NotImplementedError()
             new_vm_id = await self.find_next_available_vm_id()
             with trace_action(
                 self.logger,
                 self.TRACE_NAME,
                 f"create VM from backup {new_vm_id=}",
             ):
-                # todo other config
-                await self.async_proxmox.request(
-                    "POST",
-                    f"/nodes/{self.node}/qemu",
-                    json={
-                        "vmid": new_vm_id,
-                        "node": self.node,
-                        "archive": f"/var/lib/vz/dump/{vm_config.vm_source_config.existing_backup_name}",
-                    },
-                )
+
+                async def create_from_backup() -> None:
+                    await self.async_proxmox.request(
+                        "POST",
+                        f"/nodes/{self.node}/qemu",
+                        json={
+                            "vmid": new_vm_id,
+                            "node": self.node,
+                            "archive": f"/var/lib/vz/dump/{vm_config.vm_source_config.existing_backup_name}",
+                        },
+                    )
+                    # todo other config
+
+                await self.task_wrapper.do_action_and_wait_for_tasks(create_from_backup)
+
+            await self.start_and_await(
+                vm_id=new_vm_id,
+                is_sandbox=vm_config.is_sandbox,
+            )
         elif vm_config.vm_source_config.built_in:
             if vm_config.vm_source_config.built_in in ["ubuntu24.04"]:
                 vm_id_to_clone = built_in_vm_ids[vm_config.vm_source_config.built_in]

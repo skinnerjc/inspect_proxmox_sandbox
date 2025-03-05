@@ -65,12 +65,6 @@ sandbox=SandboxEnvironmentSpec(
                 ram_mb=512 # optional, default is 2048 MB
                 vcpus=4 # optional, default is 2. No attempt is made to check that this will fit in the Proxmox host.
             ),
-            # A virtual machine to restore from backup.
-            VmConfig(
-                vm_source_config=VmSourceConfig(
-                    existing_backup_name="vzdump-qemu-[vm id]-[datestamp of backup].vma.zst"
-                ),
-            ),
             # A virtual machine from a local OVA, which will be uploaded from here to the Proxmox server.
             VmConfig(
                 vm_source_config=VmSourceConfig(
@@ -81,6 +75,15 @@ sandbox=SandboxEnvironmentSpec(
             VmConfig(
                 vm_source_config=VmSourceConfig(
                     ova=HttpUrl("https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.ova")
+                ),
+            ),
+           # A virtual machine to restore from backup.
+            # This is *not recommended* since it is dependent on configuring a 
+            # customised Proxmox instance that contains the backup file before
+            # the eval start.
+            VmConfig(
+                vm_source_config=VmSourceConfig(
+                    existing_backup_name="vzdump-qemu-[vm id]-[datestamp of backup].vma.zst"
                 ),
             ),
             # A virtual machine that exists in the eval sample, but is not a sandbox.

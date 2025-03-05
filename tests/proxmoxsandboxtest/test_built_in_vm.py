@@ -15,3 +15,4 @@ async def test_ubuntu(proxmox_api: AsyncProxmoxAPI) -> None:
         vm_source_config=VmSourceConfig(built_in="ubuntu24.04"),
         known_buitins=known_builtins,
     )
+    # TODO assertions!
