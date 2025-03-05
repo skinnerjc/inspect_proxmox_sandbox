@@ -269,6 +269,38 @@ class QemuCommands(abc.ABC):
                 raise NotImplementedError(
                     f"Not supported: {type(vm_config.vm_source_config.ova)}"
                 )
+        elif vm_config.vm_source_config.existing_vm_template_tag:
+            existing_vms = await self.list_vms()
+
+            found_vm = []
+
+            for existing_vm in existing_vms:
+                if (
+                    "tags" in existing_vm
+                    and existing_vm["tags"]
+                    == vm_config.vm_source_config.existing_vm_template_tag
+                    and "template" in existing_vm
+                    and existing_vm["template"] == 1
+                ):
+                    found_vm.append(existing_vm)
+                    break
+
+            if len(found_vm) == 0:
+                raise ValueError(
+                    f"Couldn't find VM with tag {vm_config.vm_source_config.existing_vm_template_tag}"
+                )
+
+            if len(found_vm) > 1:
+                raise ValueError(
+                    f"Found multiple VMs with tag {vm_config.vm_source_config.existing_vm_template_tag}: {found_vm=}"
+                )
+
+            vm_id_to_clone = found_vm[0]["vmid"]
+
+            new_vm_id = await self.clone_vm_and_start(
+                vm_config, vm_id_to_clone, sdn_vnet_aliases
+            )
+
         else:
             raise NotImplementedError(f"Not supported: {vm_config.vm_source_config=}")
         if new_vm_id is None:
