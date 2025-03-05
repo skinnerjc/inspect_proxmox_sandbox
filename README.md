@@ -77,7 +77,14 @@ sandbox=SandboxEnvironmentSpec(
                     ova=HttpUrl("https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.ova")
                 ),
             ),
-           # A virtual machine to restore from backup.
+            # A virtual machine to clone from an existing template VM.
+            # This is *not recommended* since it is dependent on configuring a 
+            # customised Proxmox instance that contains the template VM before
+            # the eval start.
+            VmConfig(
+                existing_vm_template_tag = "java_server"
+            ),
+            # A virtual machine to restore from backup.
             # This is *not recommended* since it is dependent on configuring a 
             # customised Proxmox instance that contains the backup file before
             # the eval start.

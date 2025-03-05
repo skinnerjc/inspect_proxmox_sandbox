@@ -296,6 +296,8 @@ class QemuCommands(abc.ABC):
                 raise NotImplementedError(
                     f"Not supported: {type(vm_config.vm_source_config.ova)}"
                 )
+        else:
+            raise NotImplementedError(f"Not supported: {vm_config.vm_source_config=}")
         if new_vm_id is None:
             raise ValueError("No VM ID?")
         return new_vm_id

@@ -63,7 +63,7 @@ def simple_vnet_config(
 
 class VmSourceConfig(BaseModel, frozen=True):
     existing_vm_template_tag: str | None = (
-        None  # if the VM exists as a template with this tag, clone it from that - TODO, not yet implemented
+        None  # if the VM exists as a template with this tag, clone it from that
     )
     ova: Path | HttpUrl | None = (
         None  # otherwise, the VM will be created from this OVA
