@@ -317,7 +317,10 @@ class QemuCommands(abc.ABC):
             network_update_json: ProxmoxJsonDataType = {
                 "tags": ""
             }  # remove the tag as that's only for the template TODO - move this
-            if len(vm_config.nics) > 0:
+            if vm_config.nics is None:
+                # TODO: remove any existing nics
+                raise NotImplementedError()
+            elif len(vm_config.nics) > 0:
                 alias_mapping = self._convert_sdn_vnet_aliases(sdn_vnet_aliases)
                 for i, nic in enumerate(vm_config.nics):
                     netx = f"virtio,bridge={alias_mapping[nic.vnet_alias]}"
@@ -360,7 +363,8 @@ class QemuCommands(abc.ABC):
 
         await create_clone()
 
-        await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
+        if vm_config.nics != ():
+            await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
 
         other_update_json: ProxmoxJsonDataType = {}
         self.other_config_json(vm_config, other_update_json)

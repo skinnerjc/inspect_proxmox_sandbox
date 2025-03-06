@@ -114,9 +114,16 @@ class VmConfig(BaseModel, frozen=True):
     name: Optional[str] = None
     ram_mb: Optional[int] = 2048
     vcpus: Optional[int] = 2
-    nics: Tuple[
+
+    # If nics is set, the VM will be connected to these VNets (one interface per VNet).
+    # If nics is left as the default empty tuple ():
+    #   If the vm_source_config is existing_backup_name or existing_vm_template_tag, the NICs will 
+    #      be left as configured in the existing VM backup or template.
+    #   If the vm_source_config is ova or built_in, it will be connected to the first VNet.
+    # If nics is set to None, the VM will not have any NICs.
+    nics: Optional[Tuple[
         VmNicConfig, ...
-    ] = ()  # if set, the VM will be connected to these VNets (one interface per VNet), otherwise it will just be connected to the first VNet
+    ]] = ()
     is_sandbox: bool = True  # if True, the VM will show up as a sandbox. It must have the qemu-guest-agent installed
     uefi_boot: bool = False  # if True, the VM will boot in UEFI mode. In theory, this is already specified by OVA, but Proxmox doesn't seem to respect it.
 
