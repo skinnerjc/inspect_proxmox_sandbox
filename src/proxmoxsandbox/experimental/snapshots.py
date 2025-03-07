@@ -8,14 +8,9 @@ from inspect_ai.util import SandboxEnvironmentSpec, sandbox, store
 from inspect_ai.approval import ApprovalPolicy, human_approver, auto_approver
 
 
-
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
     ProxmoxSandboxEnvironment,
     ProxmoxSandboxEnvironmentConfig,
-)
-from proxmoxsandbox.inspect.schema import (
-    VmConfig,
-    VmSourceConfig,
 )
 
 example_dataset = [
@@ -92,11 +87,7 @@ def try_snapshots() -> Task:
         scorer=includes(),
         sandbox=SandboxEnvironmentSpec(
             type="proxmox",
-            config=ProxmoxSandboxEnvironmentConfig(
-                vms_config=(
-                    VmConfig(vm_source_config=VmSourceConfig(built_in="ubuntu24.04")),
-                ),
-            ),
+            config=ProxmoxSandboxEnvironmentConfig(),
         ),
     )
 
@@ -149,9 +140,11 @@ if __name__ == "__main__":
             ],
         ),
         log_level="trace",
-        approval = [
-            ApprovalPolicy(human_approver(), ["create_snapshot", "rollback_to_snapshot", "submit"]),
-            ApprovalPolicy(auto_approver(), "*")
-        ]
+        approval=[
+            ApprovalPolicy(
+                human_approver(), ["create_snapshot", "rollback_to_snapshot", "submit"]
+            ),
+            ApprovalPolicy(auto_approver(), "*"),
+        ],
         # sandbox_cleanup=False
     )

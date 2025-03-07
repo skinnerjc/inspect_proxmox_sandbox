@@ -54,6 +54,14 @@ class BuiltInVM(abc.ABC):
 package_update: true
 packages:
   - qemu-guest-agent
+# Uncomment the ubuntu user for debugging. Password is "Password2.0"
+# users:
+#   - name: ubuntu
+#     passwd: $6$rounds=4096$6ZjLzzWD9RGieC1y$8R5a/3Vwp3xr9ae9GVlCH0xGGofhp8xlKdddWRugOPhj3frUMr5g57x8t28JRFdS/scPl5AUwrTjah/BVe8dY1
+#     lock_passwd: false
+#     sudo: ALL=(ALL) NOPASSWD:ALL
+#     groups: sudo
+  
 runcmd:
   - [ systemctl, enable, qemu-guest-agent ]
   - [ systemctl, start, qemu-guest-agent ]
