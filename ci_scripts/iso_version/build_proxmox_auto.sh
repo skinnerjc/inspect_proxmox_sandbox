@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-apt update
-apt install -y libvirt-clients libvirt-daemon-system qemu-system-x86 virtinst
+sudo apt update
+sudo apt install -y virt-manager libvirt-clients libvirt-daemon-system qemu-system-x86 virtinst
 
 virsh destroy proxmox-auto
 virsh undefine --nvram --remove-all-storage proxmox-auto
@@ -64,7 +64,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN mkdir -p /iso
 
-RUN wget -O /iso/proxmox.iso https://enterprise.proxmox.com/iso/proxmox-ve_8.3-1.iso
+RUN wget -q -O /iso/proxmox.iso https://enterprise.proxmox.com/iso/proxmox-ve_8.3-1.iso
 
 RUN echo "deb http://download.proxmox.com/debian/pve/ bookworm pve-no-subscription" > /etc/apt/sources.list.d/pve.list
 RUN wget -O- http://download.proxmox.com/debian/proxmox-release-bookworm.gpg | apt-key add -
@@ -88,7 +88,26 @@ EOFDOCKER
 docker build --debug  -t proxmox-auto-install .
 docker run --rm -v $(pwd):/output proxmox-auto-install
 sudo cp -v proxmox-auto-from-iso.iso /var/lib/libvirt/images
-virt-install --name proxmox-auto --memory 131072 --vcpus 16 --disk size=2000 --cdrom '/var/lib/libvirt/images/proxmox-auto-from-iso.iso' --os-variant debian12 --network none --graphics none --console pty,target_type=serial --boot uefi --cpu host  --qemu-commandline="-device virtio-net,netdev=user.0,addr=8  -netdev user,id=user.0,hostfwd=tcp::10000-:8006" --check disk_size=off 
 
-# remove the CDROM
+# Previously there were loads of problems with permissions here when attempting to use the ubuntu user.
+# Something to do with running in cloud-init; it worked fine when logged in with ubuntu in a normal termainl.
+# I gave up and just used sudo.
+cat << 'EOFVIRTINST' > virt-inst-proxmox.sh
+virt-install --name proxmox-auto \
+    --memory 131072 \
+    --vcpus 16 \
+    --disk size=2000 \
+    --cdrom '/var/lib/libvirt/images/proxmox-auto-from-iso.iso' \
+    --os-variant debian12 \
+    --network none \
+    --graphics none \
+    --console pty,target_type=serial \
+    --boot uefi \
+    --cpu host \
+    --qemu-commandline='-device virtio-net,netdev=user.0,addr=8 -netdev user,id=user.0,hostfwd=tcp::10000-:8006' \
+    --check disk_size=off
 EDITOR="sed -i '/<disk type=.*device=.cdrom/,/<\/disk>/d'" virsh edit proxmox-auto
+EOFVIRTINST
+
+chmod +x virt-inst-proxmox.sh
+sudo tmux new-session -d -s virt-inst-proxmox  ./virt-inst-proxmox.sh
