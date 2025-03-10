@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+apt update
+apt install -y libvirt-clients libvirt-daemon-system qemu-system-x86 virtinst
+
 virsh destroy proxmox-auto
 virsh undefine --nvram --remove-all-storage proxmox-auto
 
