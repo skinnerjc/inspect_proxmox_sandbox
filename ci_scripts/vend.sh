@@ -3,7 +3,7 @@
 set -eux
 
 VM_ID=$1
-VM_ORIG=proxmox-2000
+VM_ORIG=proxmox-auto
 VM_NEW="proxmox-clone-$VM_ID"
 
 AISI_PROXMOX_EXPOSED_PORT=$(( 11000 + $VM_ID ))
@@ -11,8 +11,9 @@ AISI_PROXMOX_EXPOSED_PORT=$(( 11000 + $VM_ID ))
 
 virt-clone --original "$VM_ORIG" \
                --name "$VM_NEW" \
-               --file "/var/lib/libvirt/images/$VM_NEW.qcow2" \
-                --check disk_size=off
+               --file "/var/lib/libvirt/images/$VM_NEW-main.qcow2" \
+               --file "/var/lib/libvirt/images/$VM_NEW-storage.qcow2" \
+              --check disk_size=off
 
 
 root_password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 20)

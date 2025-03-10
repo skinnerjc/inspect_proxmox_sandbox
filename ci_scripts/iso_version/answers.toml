@@ -1,0 +1,18 @@
+[global]
+keyboard = "en-gb"
+country = "gb"
+fqdn = "proxmox.local"
+mailto = "root@localhost"
+timezone = "Europe/London"
+root_password = "Password2.0"
+
+[network]
+source = "from-dhcp"
+
+[disk-setup]
+filesystem = "ext4"
+disk_list = ["vda"]
+
+[first-boot]
+source = "from-iso"
+ordering = "fully-up"
