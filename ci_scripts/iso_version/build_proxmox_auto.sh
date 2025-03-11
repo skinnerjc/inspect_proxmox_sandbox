@@ -1,7 +1,18 @@
 #!/usr/bin/env bash
+# Monolithic script to install proxmox on a bare-metal EC2 instance.
+# It's all in one file so that you can run it with the --script option of aisi create-instance.
+#
+# What it does:
+# Using docker, builds a Proxmox auto-install ISO per https://pve.proxmox.com/wiki/Automated_Installation
+# Using virt-manager, installs a template Proxmox VM using that auto-install ISO.
+# Leaves you with a script vend.sh which you can use to create up to 10 clones of the template VM when you need a Proxmox instance.
+# e.g. 
+# sudo ./vend.sh 1
+# The clones will be accessible on the host at ports 11001, 11002, etc.
+# Each clone will have a different root password, which is printed out by vend.sh.
 
 sudo apt update
-sudo apt install -y virt-manager libvirt-clients libvirt-daemon-system qemu-system-x86 virtinst
+sudo apt install -y virt-manager libvirt-clients libvirt-daemon-system qemu-system-x86 virtinst guestfs-tools
 
 virsh destroy proxmox-auto
 virsh undefine --nvram --remove-all-storage proxmox-auto
@@ -111,3 +122,32 @@ EOFVIRTINST
 
 chmod +x virt-inst-proxmox.sh
 sudo tmux new-session -d -s virt-inst-proxmox  ./virt-inst-proxmox.sh
+
+cat << 'EOFVEND' > vend.sh
+#!/usr/bin/env bash
+# NOTE: script requires root for unclear reasons
+set -eux
+
+VM_ID=$1
+VM_ORIG=proxmox-auto
+VM_NEW="proxmox-clone-$VM_ID"
+AISI_PROXMOX_EXPOSED_PORT=$(( 11000 + $VM_ID ))
+
+virt-clone --original "$VM_ORIG" \
+               --name "$VM_NEW" \
+               --file "/var/lib/libvirt/images/$VM_NEW-main.qcow2" \
+               --file "/var/lib/libvirt/images/$VM_NEW-storage.qcow2" \
+              --check disk_size=off
+
+root_password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 20)
+
+# for some reason the hostkeys are not regenerated and proxmox complains about missing /etc/ssh/ssh_host_rsa_key.pub
+virt-sysprep -d "$VM_NEW" \
+    --root-password "password:$root_password" \
+    --operations "defaults,-ssh-hostkeys" \
+
+EDITOR="sed -i 's/hostfwd=tcp::[0-9]\+-:8006/hostfwd=tcp::$AISI_PROXMOX_EXPOSED_PORT-:8006/'" virsh edit "$VM_NEW"
+
+echo "Created VM $VM_NEW on port $AISI_PROXMOX_EXPOSED_PORT with root password $root_password"
+EOFVEND
+chmod +x ./vend.sh
