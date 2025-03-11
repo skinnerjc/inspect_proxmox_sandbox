@@ -13,6 +13,7 @@
 
 sudo apt update
 sudo apt install -y virt-manager libvirt-clients libvirt-daemon-system qemu-system-x86 virtinst guestfs-tools
+sudo usermod --append --groups libvirt $(whoami)
 
 virsh destroy proxmox-auto
 virsh undefine --nvram --remove-all-storage proxmox-auto
