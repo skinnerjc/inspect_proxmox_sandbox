@@ -126,24 +126,24 @@ sudo tmux new-session -d -s virt-inst-proxmox  ./virt-inst-proxmox.sh
 
 cat << 'EOFVEND' > vend.sh
 #!/usr/bin/env bash
-# NOTE: script requires root for unclear reasons
 set -eux
 
 VM_ID=$1
 VM_ORIG=proxmox-auto
 VM_NEW="proxmox-clone-$VM_ID"
+VM_NEW_DISK="/var/lib/libvirt/images/$VM_NEW.qcow2"
 AISI_PROXMOX_EXPOSED_PORT=$(( 11000 + $VM_ID ))
 
 virt-clone --original "$VM_ORIG" \
                --name "$VM_NEW" \
-               --file "/var/lib/libvirt/images/$VM_NEW-main.qcow2" \
-               --file "/var/lib/libvirt/images/$VM_NEW-storage.qcow2" \
+               --file "$VM_NEW_DISK" \
               --check disk_size=off
 
 root_password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 20)
 
 # for some reason the hostkeys are not regenerated and proxmox complains about missing /etc/ssh/ssh_host_rsa_key.pub
-virt-sysprep -d "$VM_NEW" \
+# virt-sysprep needs root to be able to access the kernel so we need sudo; see https://bugs.launchpad.net/ubuntu/+source/linux/+bug/759725
+sudo virt-sysprep -d "$VM_NEW" \
     --root-password "password:$root_password" \
     --operations "defaults,-ssh-hostkeys" \
 
