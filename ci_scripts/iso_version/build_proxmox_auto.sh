@@ -126,7 +126,7 @@ sudo tmux new-session -d -s virt-inst-proxmox  ./virt-inst-proxmox.sh
 
 cat << 'EOFVEND' > vend.sh
 #!/usr/bin/env bash
-set -eux
+set -eu
 
 VM_ID=$1
 VM_ORIG=proxmox-auto
