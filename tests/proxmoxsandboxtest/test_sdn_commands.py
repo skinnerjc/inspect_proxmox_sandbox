@@ -65,7 +65,7 @@ async def test_create_sdn_with_vnets_and_subnet(sdn_commands: SdnCommands) -> No
                     )
                 ),
             ),
-            use_pve_ipam_dnsnmasq=True,
+            use_pve_ipam_dnsnmasq=False,
         ),
     )
 
@@ -158,9 +158,7 @@ async def test_create_sdn_overlapping(
     assert "Duplicate IP ranges" in str(e_info.value)
 
 
-async def test_create_sdn_auto(proxmox_api: AsyncProxmoxAPI) -> None:
-    sdn_commands = SdnCommands(proxmox_api, node="proxmox")
-
+async def test_create_sdn_auto(sdn_commands: SdnCommands) -> None:
     ids_start = f"tsc{random.randint(100, 999)}"
 
     __build_class__, vnet_aliases = await sdn_commands.create_sdn(
@@ -170,9 +168,7 @@ async def test_create_sdn_auto(proxmox_api: AsyncProxmoxAPI) -> None:
     assert len(vnet_aliases) == 1
 
 
-async def test_create_sdn_none(proxmox_api: AsyncProxmoxAPI) -> None:
-    sdn_commands = SdnCommands(proxmox_api, node="proxmox")
-
+async def test_create_sdn_none(sdn_commands: SdnCommands) -> None:
     ids_start = f"tsc{random.randint(100, 999)}"
 
     sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(
