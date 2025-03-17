@@ -105,7 +105,9 @@ async def test_inconsistent_ipam_setting_false_but_dhcp(
                                 cidr="10.32.32.0/24",
                                 gateway="10.32.32.1",
                                 snat=False,
-                                dhcp_ranges=(DhcpRange(start="10.32.32.16",end="10.32.32.32"),),
+                                dhcp_ranges=(
+                                    DhcpRange(start="10.32.32.16", end="10.32.32.32"),
+                                ),
                             ),
                         )
                     ),
@@ -116,47 +118,44 @@ async def test_inconsistent_ipam_setting_false_but_dhcp(
     assert "use_pve_ipam_dnsnmasq" in str(e_info.value)
 
 
-async def test_inconsistent_ipam_setting_true_but_no_snat(
+async def test_create_sdn_overlapping(
     sdn_commands: SdnCommands,
 ) -> None:
-    pass
-    # actually maybe this is OK and would make sense
-
-async def test_inconsistent_ipam_setting_false_but_snat(
-    sdn_commands: SdnCommands,
-) -> None:
-    pass
-
-async def test_create_sdn_duplicate(proxmox_api: AsyncProxmoxAPI) -> None:
-    infra_config = InfraCommands(proxmox_api, node="proxmox")
-
-    sdn_zone_ids = []
-
-    try:
-        z1_ids_start = f"hel{random.randint(100, 999)}"
-
-        __name__, sdn_zone_id_1 = await infra_config.create_sdn_and_vms(
-            proxmox_ids_start=z1_ids_start,
-            # sdn_config=simple_sdn_config(22),
-            vms_config=(),
-            known_builtins={},
+    ids_start = f"tsc{random.randint(100, 999)}"
+    with raises(ValueError) as e_info:
+        await sdn_commands.create_sdn(
+            proxmox_ids_start=ids_start,
+            sdn_config=SdnConfig(
+                vnet_configs=(
+                    VnetConfig(
+                        subnets=(
+                            SubnetConfig(
+                                cidr="10.0.0.0/8",
+                                gateway="10.0.0.1",
+                                snat=False,
+                                dhcp_ranges=(
+                                    DhcpRange(start="10.0.0.16", end="10.0.0.32"),
+                                ),
+                            ),
+                        )
+                    ),
+                    VnetConfig(
+                        subnets=(
+                            SubnetConfig(
+                                cidr="10.128.0.0/9",
+                                gateway="10.128.0.1",
+                                snat=False,
+                                dhcp_ranges=(
+                                    DhcpRange(start="10.128.0.16", end="10.128.0.32"),
+                                ),
+                            ),
+                        )
+                    ),
+                ),
+                use_pve_ipam_dnsnmasq=True,
+            ),
         )
-        sdn_zone_ids.append(sdn_zone_id_1)
-
-        with raises(ValueError) as e_info:
-            z2_ids_start = f"hel{random.randint(100, 999)}"
-            __name__, sdn_zone_id_1 = await infra_config.create_sdn_and_vms(
-                proxmox_ids_start=z2_ids_start,
-                # sdn_config=simple_sdn_config(22),
-                vms_config=(),
-                known_builtins={},
-            )
-            sdn_zone_ids.append(sdn_zone_id_1)
-        assert "Duplicate IP" in str(e_info.value)
-        assert "22" in str(e_info.value)
-    finally:
-        for sdn_zone_id in sdn_zone_ids:
-            await infra_config.delete_sdn_and_vms(sdn_zone_id, ())
+    assert "Duplicate IP ranges" in str(e_info.value)
 
 
 async def test_create_sdn_auto(proxmox_api: AsyncProxmoxAPI) -> None:

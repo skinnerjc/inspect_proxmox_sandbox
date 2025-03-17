@@ -38,7 +38,7 @@ class SdnCommands(abc.ABC):
         self.task_wrapper = TaskWrapper(async_proxmox)
         self.node = node
 
-    def find_cidr_overlaps(
+    def find_existing_cidr_overlaps(
         self, list1: List[str], list2: List[str]
     ) -> List[Tuple[str, str]]:
         overlaps = []
@@ -52,6 +52,18 @@ class SdnCommands(abc.ABC):
 
         return overlaps
 
+    def find_self_cidr_overlaps(self, list1: List[str]) -> List[Tuple[str, str]]:
+        overlaps = []
+        networks1 = [ip_network(cidr) for cidr in list1]
+        networks2 = [ip_network(cidr) for cidr in list1]
+
+        for i, net1 in enumerate(networks1):
+            for j, net2 in enumerate(networks2):
+                if net1.overlaps(net2) and i != j:
+                    overlaps.append((list1[i], list1[j]))
+
+        return overlaps
+
     async def check_cidrs(self, vnet_configs: List[VnetConfig]) -> None:
         existing_cidrs = await self.read_all_simple_zone_cidrs()
 
@@ -61,7 +73,9 @@ class SdnCommands(abc.ABC):
                 new_cidrs.append(str(subnet.cidr))
 
         # See https://forum.proxmox.com/threads/sdn-simple-zones-and-overlapping-ip-ranges.162739/
-        if overlaps := self.find_cidr_overlaps(existing_cidrs, new_cidrs):
+        if overlaps := self.find_existing_cidr_overlaps(
+            existing_cidrs, new_cidrs
+        ) + self.find_self_cidr_overlaps(new_cidrs):
             raise ValueError(f"Duplicate IP ranges found: {overlaps}")
 
     def simple_vnet_config(
