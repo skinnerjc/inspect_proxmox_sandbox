@@ -25,6 +25,9 @@ class BuiltInVM(abc.ABC):
     logger = getLogger(__name__)
 
     TRACE_NAME = "proxmox_built_in_vm"
+
+    # A static SDN used for creating built-in VMs. It is created on demand
+    # and not torn down afterwards.
     STATIC_SDN_START = "inspvm"
 
     UBUNTU_24_04_OVA_FILENAME = "ubuntu24.04.ova"
@@ -263,10 +266,8 @@ runcmd:
             for zone_info in existing_zones
         )
 
-        if exists_already:
-            vnet_id = f"{self.STATIC_SDN_START}v0"
-        else:
-            _, vnet_id, _ = await self.sdn_commands.create_sdn(
+        if not exists_already:
+            await self.sdn_commands.create_sdn(
                 proxmox_ids_start=self.STATIC_SDN_START,
                 sdn_config=SdnConfig(
                     vnet_configs=(
@@ -288,6 +289,7 @@ runcmd:
                     )
                 ),
             )
+        vnet_id = f"{self.STATIC_SDN_START}v0"
 
         with trace_action(
             self.logger,
