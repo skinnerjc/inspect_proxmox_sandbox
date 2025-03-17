@@ -2,8 +2,6 @@ import random
 
 from pytest import raises
 
-from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
 from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
 from proxmoxsandbox.inspect.schema import DhcpRange, SdnConfig, SubnetConfig, VnetConfig
 
