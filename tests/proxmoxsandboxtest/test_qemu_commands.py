@@ -51,7 +51,7 @@ async def test_none_nic_from_built_in(
     ids_start: str,
 ):
     sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(ids_start, "auto")
-    
+
     built_in_ubuntu = VmSourceConfig(built_in="ubuntu24.04")
 
     await built_in_vm.ensure_exists(built_in_ubuntu)
@@ -73,13 +73,36 @@ async def test_none_nic_from_built_in(
     sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id)
 
 
-
 async def test_multiple_nic():
     pass
 
 
-async def test_empty_nic_from_built_in():
-    pass
+async def test_empty_nic_from_built_in(
+    qemu_commands: QemuCommands,
+    sdn_commands: SdnCommands,
+    built_in_vm: BuiltInVM,
+    ids_start: str,
+):
+    sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(ids_start, "auto")
+
+    built_in_ubuntu = VmSourceConfig(built_in="ubuntu24.04")
+
+    await built_in_vm.ensure_exists(built_in_ubuntu)
+
+    new_vm_id = await qemu_commands.create_and_start_vm(
+        sdn_vnet_aliases=vnet_aliases,
+        vm_config=VmConfig(
+            vm_source_config=built_in_ubuntu,
+            nics=(),
+        ),
+        built_in_vm_ids=await built_in_vm.known_builtins(),
+    )
+
+    new_vm = await qemu_commands.read_vm(new_vm_id)
+    assert "net0" not in new_vm
+
+    qemu_commands.destroy_vm(new_vm_id)
+    sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id)
 
 
 async def test_uefi():

@@ -326,6 +326,17 @@ class QemuCommands(abc.ABC):
                 first_vnet_id = sdn_vnet_aliases[0][0]
                 network_update_json["net0"] = f"virtio,bridge={first_vnet_id}"
             else:
+                # delete existing NICs
+                existing_config = await self.read_vm(vm_id)
+                for key in existing_config.keys():
+                    if key.startswith("net"):
+                        await self.async_proxmox.request(
+                            "PUT",
+                            f"/nodes/{self.node}/qemu/{vm_id}/config",
+                            content=f"delete={key}",
+                            content_type="application/x-www-form-urlencoded",
+                        )
+                        # PUT f"delete={key}"
                 alias_mapping = self._convert_sdn_vnet_aliases(sdn_vnet_aliases)
                 for i, nic in enumerate(vm_config.nics):
                     netx = f"virtio,bridge={alias_mapping[nic.vnet_alias]}"
@@ -349,12 +360,6 @@ class QemuCommands(abc.ABC):
     ) -> int:
         new_vm_id = await self.find_next_available_vm_id()
 
-        # @tenacity.retry(
-        #     wait=tenacity.wait_exponential(min=1, exp_base=1.1),
-        #     stop=tenacity.stop_after_attempt(10),
-        # )
-        # # Sometimes fails with '500 Linked clone feature is not supported for 'local-lvm:vm-101-disk-0' (scsi0)'
-        # # hence the retry decorator
         async def create_clone() -> None:
             await self.async_proxmox.request(
                 "POST",
@@ -362,7 +367,7 @@ class QemuCommands(abc.ABC):
                 json={"newid": new_vm_id, "full": 0, "name": vm_config.name},
             )
 
-        await create_clone()
+        await self.task_wrapper.do_action_and_wait_for_tasks(create_clone)
 
         await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
 
