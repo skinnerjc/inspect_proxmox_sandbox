@@ -92,8 +92,8 @@ class VmConfig(BaseModel, frozen=True):
     vcpus: Optional[int] = 2
 
     # If nics is set, the VM will be connected to these VNets (one interface per VNet).
-    # If nics is left as the default empty tuple (), the VM will not have any NICs.
-    # If nics is set to None, 
+    # If nics is set as empty tuple (), the VM will not have any NICs.
+    # If nics is left as the default None: 
     #   If the vm_source_config is existing_backup_name or existing_vm_template_tag, the NICs will 
     #      be left as configured in the existing VM backup or template.
     #   If the vm_source_config is ova or built_in, it will be connected to the first VNet.

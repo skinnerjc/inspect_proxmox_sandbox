@@ -193,9 +193,7 @@ including the running processes. See [snapshots.py](./src/proxmoxsandbox/experim
 ## Tech debt
 
 - Types, mypy, ruff, etc.
-- Kali startup is flaky
 - Test coverage is not great and it's not well documented how to get started running them
-- Error handling, especially surfacing the HTTP body text when the Proxmox server returns HTTP 500
 - Does not work with Inspect's post-hoc sandbox cleanup feature
 
 ## Developing

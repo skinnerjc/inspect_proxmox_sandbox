@@ -1,14 +1,10 @@
-import random
-
 from pytest import raises
 
 from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
 from proxmoxsandbox.inspect.schema import DhcpRange, SdnConfig, SubnetConfig, VnetConfig
 
 
-async def test_create_sdn_no_vnets(sdn_commands: SdnCommands) -> None:
-    ids_start = f"tsc{random.randint(100, 999)}"
-
+async def test_create_sdn_no_vnets(ids_start: str, sdn_commands: SdnCommands) -> None:
     with raises(ValueError) as e_info:
         await sdn_commands.create_sdn(
             proxmox_ids_start=ids_start,
@@ -17,9 +13,7 @@ async def test_create_sdn_no_vnets(sdn_commands: SdnCommands) -> None:
     assert "No vnets provided" in str(e_info.value)
 
 
-async def test_create_sdn_with_vnets(sdn_commands: SdnCommands) -> None:
-    ids_start = f"tsc{random.randint(100, 999)}"
-
+async def test_create_sdn_with_vnets(ids_start: str, sdn_commands: SdnCommands) -> None:
     sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(
         proxmox_ids_start=ids_start,
         sdn_config=SdnConfig(
@@ -39,9 +33,9 @@ async def test_create_sdn_with_vnets(sdn_commands: SdnCommands) -> None:
     await sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id)
 
 
-async def test_create_sdn_with_vnets_and_subnet(sdn_commands: SdnCommands) -> None:
-    ids_start = f"tsc{random.randint(100, 999)}"
-
+async def test_create_sdn_with_vnets_and_subnet(
+    ids_start: str, sdn_commands: SdnCommands
+) -> None:
     sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(
         proxmox_ids_start=ids_start,
         sdn_config=SdnConfig(
@@ -68,9 +62,9 @@ async def test_create_sdn_with_vnets_and_subnet(sdn_commands: SdnCommands) -> No
 
 
 async def test_inconsistent_ipam_setting_true_but_no_dhcp(
+    ids_start: str,
     sdn_commands: SdnCommands,
 ) -> None:
-    ids_start = f"tsc{random.randint(100, 999)}"
     with raises(ValueError) as e_info:
         await sdn_commands.create_sdn(
             proxmox_ids_start=ids_start,
@@ -83,9 +77,9 @@ async def test_inconsistent_ipam_setting_true_but_no_dhcp(
 
 
 async def test_inconsistent_ipam_setting_false_but_dhcp(
+    ids_start: str,
     sdn_commands: SdnCommands,
 ) -> None:
-    ids_start = f"tsc{random.randint(100, 999)}"
     with raises(ValueError) as e_info:
         await sdn_commands.create_sdn(
             proxmox_ids_start=ids_start,
@@ -111,9 +105,9 @@ async def test_inconsistent_ipam_setting_false_but_dhcp(
 
 
 async def test_create_sdn_overlapping(
+    ids_start: str,
     sdn_commands: SdnCommands,
 ) -> None:
-    ids_start = f"tsc{random.randint(100, 999)}"
     with raises(ValueError) as e_info:
         await sdn_commands.create_sdn(
             proxmox_ids_start=ids_start,
@@ -150,9 +144,7 @@ async def test_create_sdn_overlapping(
     assert "Duplicate IP ranges" in str(e_info.value)
 
 
-async def test_create_sdn_auto(sdn_commands: SdnCommands) -> None:
-    ids_start = f"tsc{random.randint(100, 999)}"
-
+async def test_create_sdn_auto(ids_start: str, sdn_commands: SdnCommands) -> None:
     sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(
         proxmox_ids_start=ids_start, sdn_config="auto"
     )
@@ -162,9 +154,7 @@ async def test_create_sdn_auto(sdn_commands: SdnCommands) -> None:
     await sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id)
 
 
-async def test_create_sdn_none(sdn_commands: SdnCommands) -> None:
-    ids_start = f"tsc{random.randint(100, 999)}"
-
+async def test_create_sdn_none(ids_start: str, sdn_commands: SdnCommands) -> None:
     sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(
         proxmox_ids_start=ids_start, sdn_config=None
     )

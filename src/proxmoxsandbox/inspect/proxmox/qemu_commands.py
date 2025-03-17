@@ -363,7 +363,7 @@ class QemuCommands(abc.ABC):
 
         await create_clone()
 
-        if vm_config.nics != ():
+        if vm_config.nics is not None:
             await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
 
         other_update_json: ProxmoxJsonDataType = {}

@@ -85,7 +85,11 @@ class AsyncProxmoxAPI:
                 )
 
             if response.is_error and raise_errors:
-                response.raise_for_status()
+                # deliberately not using response.raise_for_status here as it does not include response.text in the raised error
+                message = f"HTTP response error: {response.status_code} {response.reason_phrase}"
+                if response.text:
+                    message += f": {response.text}"
+                raise httpx.HTTPStatusError(message, request=response.request, response=response)
             else:
                 if response.is_error:
                     return response.json()

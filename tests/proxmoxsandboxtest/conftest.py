@@ -1,11 +1,15 @@
 # tests/conftest.py
+import random
 from typing import AsyncGenerator
 
 import pytest
 
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands
 from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
-from proxmoxsandbox.inspect.proxmox_sandbox_environment import ProxmoxSandboxEnvironmentConfig
+from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
+    ProxmoxSandboxEnvironmentConfig,
+)
 
 
 @pytest.fixture
@@ -29,3 +33,14 @@ async def sandbox_env_config() -> ProxmoxSandboxEnvironmentConfig:
 @pytest.fixture
 async def sdn_commands(async_proxmox_api: AsyncProxmoxAPI) -> SdnCommands:
     return SdnCommands(async_proxmox_api, node="proxmox")
+
+
+@pytest.fixture
+async def qemu_commands(async_proxmox_api: AsyncProxmoxAPI) -> SdnCommands:
+    return QemuCommands(async_proxmox_api, node="proxmox")
+
+
+@pytest.fixture(scope="function")
+async def ids_start() -> str:
+    ids_start = f"cts{random.randint(100, 999)}"
+    return ids_start
