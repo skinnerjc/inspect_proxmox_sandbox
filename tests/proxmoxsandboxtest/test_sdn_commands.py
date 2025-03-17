@@ -42,12 +42,6 @@ async def test_create_sdn_with_vnets(sdn_commands: SdnCommands) -> None:
 async def test_create_sdn_with_vnets_and_subnet(sdn_commands: SdnCommands) -> None:
     ids_start = f"tsc{random.randint(100, 999)}"
 
-    # class SubnetConfig(BaseModel, frozen=True):
-    #     cidr: IPvAnyNetwork
-    #     gateway: IPvAnyAddress
-    #     snat: bool
-    #     dhcp_ranges: Tuple[DhcpRange, ...]
-
     sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(
         proxmox_ids_start=ids_start,
         sdn_config=SdnConfig(
