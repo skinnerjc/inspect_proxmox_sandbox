@@ -5,7 +5,7 @@ from pytest import raises
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
 from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
-from proxmoxsandbox.inspect.schema import SdnConfig, SubnetConfig, VnetConfig
+from proxmoxsandbox.inspect.schema import DhcpRange, SdnConfig, SubnetConfig, VnetConfig
 
 
 async def test_create_sdn_no_vnets(sdn_commands: SdnCommands) -> None:
@@ -105,7 +105,7 @@ async def test_inconsistent_ipam_setting_false_but_dhcp(
                                 cidr="10.32.32.0/24",
                                 gateway="10.32.32.1",
                                 snat=False,
-                                dhcp_ranges=(),
+                                dhcp_ranges=(DhcpRange(start="10.32.32.16",end="10.32.32.32"),),
                             ),
                         )
                     ),

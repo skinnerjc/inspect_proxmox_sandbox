@@ -8,7 +8,10 @@ from inspect_ai.util import trace_action
 from random import shuffle
 
 from ipaddress import ip_address, ip_network
-from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI, ProxmoxJsonDataType
+from proxmoxsandbox.inspect.proxmox.async_proxmox import (
+    AsyncProxmoxAPI,
+    ProxmoxJsonDataType,
+)
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
 from proxmoxsandbox.inspect.schema import SdnConfig, SdnConfigType, VnetConfig
 
@@ -114,6 +117,25 @@ class SdnCommands(abc.ABC):
 
         return SdnConfig(vnet_configs=tuple(vnet_configs))
 
+    def validate_ipam_dhcp_dnsnmasq(self, sdn_config: SdnConfig) -> None:
+        if sdn_config.use_pve_ipam_dnsnmasq:
+            found_dhcp_range = False
+            for vnet_config in sdn_config.vnet_configs:
+                for subnet in vnet_config.subnets:
+                    if len(subnet.dhcp_ranges) > 0:
+                        found_dhcp_range = True
+            if not found_dhcp_range:
+                raise ValueError(
+                    f"DHCP ranges should be provided when use_pve_ipam_dnsnmasq={sdn_config.use_pve_ipam_dnsnmasq}"
+                )
+        if not sdn_config.use_pve_ipam_dnsnmasq:
+            for vnet_config in sdn_config.vnet_configs:
+                for subnet in vnet_config.subnets:
+                    if len(subnet.dhcp_ranges) > 0:
+                        raise ValueError(
+                            f"DHCP ranges cannot be provided when use_pve_ipam_dnsnmasq={sdn_config.use_pve_ipam_dnsnmasq}"
+                        )
+
     async def create_sdn(
         self, proxmox_ids_start: str, sdn_config: SdnConfigType
     ) -> Tuple[Optional[str], List[Tuple[str, str | None]]]:
@@ -121,9 +143,7 @@ class SdnCommands(abc.ABC):
             return None, []
 
         resolved_sdn_config: SdnConfig = (
-            await self.generate_sdn_config()
-            if sdn_config == "auto"
-            else sdn_config
+            await self.generate_sdn_config() if sdn_config == "auto" else sdn_config
         )
 
         await self.check_cidrs(list(resolved_sdn_config.vnet_configs))
@@ -134,6 +154,8 @@ class SdnCommands(abc.ABC):
 
         if len(resolved_sdn_config.vnet_configs) == 0:
             raise ValueError("No vnets provided")
+
+        self.validate_ipam_dhcp_dnsnmasq(resolved_sdn_config)
 
         sdn_zone_id = f"{proxmox_ids_start}z"
 
