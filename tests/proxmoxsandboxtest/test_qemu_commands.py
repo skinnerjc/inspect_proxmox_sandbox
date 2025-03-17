@@ -32,6 +32,10 @@ async def test_simple(
     assert new_vm["memory"] == '768'
     assert new_vm["cores"] == 3
     assert new_vm["agent"] == "enabled=0"
+    assert 'net0' in new_vm
+
+    qemu_commands.destroy_vm(new_vm_id)
+    sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id)
 
     # new_vm = {'tags': 'inspect-ubuntu24.04', 'cpu': 'host', 'ide2': 'none,media=cdrom', 'digest': '1b06374b6cfb9b411e0216fbb8f1509e9c237a9a', 'cores': 2, 'name': 'Copy-of-VM-inspect-ubuntu24.04', 'memory': '2048', 'meta': 'creation-qemu=9.0.2,ctime=1742225637', 'net0': 'virtio=BC:24:11:57:75:05,bridge=inspvmv0', 'agent': 'enabled=1', 'boot': 'order=scsi0;net0;ide2', 'ostype': 'l26', 'smbios1': 'uuid=a3700e1c-4a46-417c-bdc8-3f4b33495b10', 'scsi0': 'local-lvm:vm-102-disk-0,cache=writeback,size=10G', 'scsihw': 'virtio-scsi-single', 'vmgenid': 'ce6dc26c-e973-4a98-8d7b-226b3b374a03'}
 
