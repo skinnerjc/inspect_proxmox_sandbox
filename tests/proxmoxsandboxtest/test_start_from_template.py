@@ -14,7 +14,6 @@ async def test_start_from_template(proxmox_api: AsyncProxmoxAPI) -> None:
     built_in_vm = BuiltInVM(proxmox_api, node="proxmox")
     await built_in_vm.ensure_exists(
         vm_source_config=VmSourceConfig(built_in="ubuntu24.04"),
-        known_buitins=(await built_in_vm.known_builtins()),
     )
 
     envs_dict = {}

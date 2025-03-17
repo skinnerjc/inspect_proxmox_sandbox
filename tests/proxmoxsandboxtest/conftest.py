@@ -5,6 +5,7 @@ from typing import AsyncGenerator
 import pytest
 
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.built_in_vm import BuiltInVM
 from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands
 from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
@@ -38,6 +39,11 @@ async def sdn_commands(async_proxmox_api: AsyncProxmoxAPI) -> SdnCommands:
 @pytest.fixture
 async def qemu_commands(async_proxmox_api: AsyncProxmoxAPI) -> SdnCommands:
     return QemuCommands(async_proxmox_api, node="proxmox")
+
+
+@pytest.fixture
+async def built_in_vm(async_proxmox_api: AsyncProxmoxAPI) -> SdnCommands:
+    return BuiltInVM(async_proxmox_api, node="proxmox")
 
 
 @pytest.fixture(scope="function")

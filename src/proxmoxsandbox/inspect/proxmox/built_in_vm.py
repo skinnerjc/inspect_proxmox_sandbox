@@ -176,6 +176,8 @@ runcmd:
                 if (
                     "tags" in existing_vm
                     and existing_vm["tags"] == f"inspect-{existing_vm_name}"
+                    and "template" in existing_vm
+                    and existing_vm["template"] == 1
                 ):
                     found_builtins[existing_vm_name] = existing_vm["vmid"]
                     break
@@ -196,13 +198,11 @@ runcmd:
 
         return existing_content
 
-    async def ensure_exists(
-        self, vm_source_config: VmSourceConfig, known_buitins: Dict[str, int]
-    ) -> None:
+    async def ensure_exists(self, vm_source_config: VmSourceConfig) -> None:
         if vm_source_config.built_in is None:
             raise ValueError("built_in must be set")
 
-        if vm_source_config.built_in in known_buitins:
+        if vm_source_config.built_in in await self.known_builtins():
             return
 
         next_available_vm_id = await self.qemu_commands.find_next_available_vm_id()

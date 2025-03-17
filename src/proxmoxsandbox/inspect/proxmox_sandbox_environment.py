@@ -160,12 +160,9 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
 
         async with concurrency("proxmox", 1):
             built_in_vm = BuiltInVM(async_proxmox=proxmox, node=NODE_NAME)
-            og_known_builtins = await built_in_vm.known_builtins()
             for vm_config in config.vms_config:
                 if vm_config.vm_source_config.built_in is not None:
-                    await built_in_vm.ensure_exists(
-                        vm_config.vm_source_config, og_known_builtins
-                    )
+                    await built_in_vm.ensure_exists(vm_config.vm_source_config)
 
             known_builtins = await built_in_vm.known_builtins()
 

@@ -120,6 +120,11 @@ class QemuCommands(abc.ABC):
         with trace_action(self.logger, self.TRACE_NAME, "list all VMs"):
             return await self.async_proxmox.request("GET", f"/nodes/{self.node}/qemu")
 
+    async def read_vm(self, vm_id: int):
+        return await self.async_proxmox.request(
+            "GET", f"/nodes/{self.node}/qemu/{vm_id}/config"
+        )
+
     async def find_next_available_vm_id(self) -> int:
         existing_vms = await self.list_vms()
         if existing_vms:
@@ -348,12 +353,12 @@ class QemuCommands(abc.ABC):
     ) -> int:
         new_vm_id = await self.find_next_available_vm_id()
 
-        @tenacity.retry(
-            wait=tenacity.wait_exponential(min=1, exp_base=2),
-            stop=tenacity.stop_after_attempt(4),
-        )
-        # Sometimes fails with '500 Linked clone feature is not supported for 'local-lvm:vm-101-disk-0' (scsi0)'
-        # hence the retry decorator
+        # @tenacity.retry(
+        #     wait=tenacity.wait_exponential(min=1, exp_base=1.1),
+        #     stop=tenacity.stop_after_attempt(10),
+        # )
+        # # Sometimes fails with '500 Linked clone feature is not supported for 'local-lvm:vm-101-disk-0' (scsi0)'
+        # # hence the retry decorator
         async def create_clone() -> None:
             await self.async_proxmox.request(
                 "POST",
@@ -375,7 +380,7 @@ class QemuCommands(abc.ABC):
             json=other_update_json,
         )
 
-        await self.start_and_await(new_vm_id)
+        await self.start_and_await(vm_id=new_vm_id, is_sandbox=vm_config.is_sandbox)
         return new_vm_id
 
     def other_config_json(
