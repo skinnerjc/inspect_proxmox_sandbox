@@ -153,11 +153,13 @@ async def test_create_sdn_overlapping(
 async def test_create_sdn_auto(sdn_commands: SdnCommands) -> None:
     ids_start = f"tsc{random.randint(100, 999)}"
 
-    __build_class__, vnet_aliases = await sdn_commands.create_sdn(
+    sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(
         proxmox_ids_start=ids_start, sdn_config="auto"
     )
 
     assert len(vnet_aliases) == 1
+
+    await sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id)
 
 
 async def test_create_sdn_none(sdn_commands: SdnCommands) -> None:
