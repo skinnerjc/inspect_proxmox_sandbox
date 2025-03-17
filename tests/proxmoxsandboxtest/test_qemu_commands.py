@@ -4,7 +4,7 @@ from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
 from proxmoxsandbox.inspect.schema import VmConfig, VmSourceConfig
 
 
-async def test_simple(
+async def test_simple_vm_non_sandbox(
     qemu_commands: QemuCommands,
     sdn_commands: SdnCommands,
     built_in_vm: BuiltInVM,
@@ -29,10 +29,10 @@ async def test_simple(
     )
 
     new_vm = await qemu_commands.read_vm(new_vm_id)
-    assert new_vm["memory"] == '768'
+    assert new_vm["memory"] == "768"
     assert new_vm["cores"] == 3
     assert new_vm["agent"] == "enabled=0"
-    assert 'net0' in new_vm
+    assert "net0" in new_vm
 
     qemu_commands.destroy_vm(new_vm_id)
     sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id)
@@ -44,8 +44,34 @@ async def test_none_nic_from_template_tag():
     pass
 
 
-async def test_none_nic_from_built_in():
-    pass
+async def test_none_nic_from_built_in(
+    qemu_commands: QemuCommands,
+    sdn_commands: SdnCommands,
+    built_in_vm: BuiltInVM,
+    ids_start: str,
+):
+    sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(ids_start, "auto")
+    
+    built_in_ubuntu = VmSourceConfig(built_in="ubuntu24.04")
+
+    await built_in_vm.ensure_exists(built_in_ubuntu)
+
+    new_vm_id = await qemu_commands.create_and_start_vm(
+        sdn_vnet_aliases=vnet_aliases,
+        vm_config=VmConfig(
+            vm_source_config=built_in_ubuntu,
+            nics=None,
+        ),
+        built_in_vm_ids=await built_in_vm.known_builtins(),
+    )
+
+    new_vm = await qemu_commands.read_vm(new_vm_id)
+    assert "net0" in new_vm
+    assert vnet_aliases[0][0] in new_vm["net0"]
+
+    qemu_commands.destroy_vm(new_vm_id)
+    sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id)
+
 
 
 async def test_multiple_nic():
