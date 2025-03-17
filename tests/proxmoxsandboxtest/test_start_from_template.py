@@ -21,7 +21,7 @@ async def test_start_from_template(proxmox_api: AsyncProxmoxAPI) -> None:
         vms_config=(
             VmConfig(
                 vm_source_config=VmSourceConfig(
-                    existing_vm_template_tag="inspect-ubuntu24.04"  # coupling ourselves to the implementation of built_in_vm, naughty
+                   
                 )
             ),
         )

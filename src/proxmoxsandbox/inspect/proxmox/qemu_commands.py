@@ -312,6 +312,17 @@ class QemuCommands(abc.ABC):
             raise ValueError("No VM ID?")
         return new_vm_id
 
+    async def remove_existing_nics(self, vm_id):
+        existing_config = await self.read_vm(vm_id)
+        for key in existing_config.keys():
+            if key.startswith("net"):
+                await self.async_proxmox.request(
+                    "PUT",
+                    f"/nodes/{self.node}/qemu/{vm_id}/config",
+                    content=f"delete={key}",
+                    content_type="application/x-www-form-urlencoded",
+                )
+
     async def configure_network(
         self,
         vm_config: VmConfig,
@@ -323,21 +334,17 @@ class QemuCommands(abc.ABC):
                 "tags": ""
             }  # remove the tag as that's only for the template TODO - move this
             if vm_config.nics is None:
-                first_vnet_id = sdn_vnet_aliases[0][0]
-                network_update_json["net0"] = f"virtio,bridge={first_vnet_id}"
+                if vm_config.vm_source_config.built_in or vm_config.vm_source_config.ova:
+                    await self.remove_existing_nics(vm_id)
+                    first_vnet_id = sdn_vnet_aliases[0][0]
+                    network_update_json["net0"] = f"virtio,bridge={first_vnet_id}"
+                # for other vm_source_configs, we *do not touch* networking config
+                # - so the user must have set it up correctly!
             else:
-                # delete existing NICs
-                existing_config = await self.read_vm(vm_id)
-                for key in existing_config.keys():
-                    if key.startswith("net"):
-                        await self.async_proxmox.request(
-                            "PUT",
-                            f"/nodes/{self.node}/qemu/{vm_id}/config",
-                            content=f"delete={key}",
-                            content_type="application/x-www-form-urlencoded",
-                        )
-                        # PUT f"delete={key}"
+                await self.remove_existing_nics(vm_id)             
                 alias_mapping = self._convert_sdn_vnet_aliases(sdn_vnet_aliases)
+                # note: vm_config.nics can be the empty tuple here - this is deliberate:
+                # you will end up with no nics in the VM
                 for i, nic in enumerate(vm_config.nics):
                     netx = f"virtio,bridge={alias_mapping[nic.vnet_alias]}"
                     if nic.mac:
