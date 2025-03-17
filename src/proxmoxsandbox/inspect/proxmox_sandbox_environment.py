@@ -158,8 +158,6 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         proxmox_ids_start = f"{task_name_start}{randint(0, 999):03d}"
         # TODO: could check here for collisions
 
-        sdn_config = config.sdn_config or await infra_commands.generate_sdn_config()
-
         async with concurrency("proxmox", 1):
             built_in_vm = BuiltInVM(async_proxmox=proxmox, node=NODE_NAME)
             og_known_builtins = await built_in_vm.known_builtins()
@@ -173,7 +171,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
 
             vm_configs_with_ids, sdn_zone_id = await infra_commands.create_sdn_and_vms(
                 proxmox_ids_start,
-                sdn_config=sdn_config,
+                sdn_config=config.sdn_config,
                 vms_config=config.vms_config,
                 known_builtins=known_builtins,
             )

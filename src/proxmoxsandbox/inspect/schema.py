@@ -1,6 +1,5 @@
 import os
-from ipaddress import ip_address, ip_network
-from typing import Annotated, Literal, Optional, Tuple
+from typing import Annotated, Literal, Optional, Tuple, Union
 from pydantic_extra_types.mac_address import MacAddress
 from pydantic import BaseModel, Field, model_validator
 from pydantic.networks import IPvAnyAddress, IPvAnyNetwork, HttpUrl
@@ -35,30 +34,7 @@ class SdnConfig(BaseModel, frozen=True):
     # Set this to False if you want to use your own pfsense instance to handle IPAM (recommended)
     use_pve_ipam_dnsnmasq: bool = True
 
-
-def simple_sdn_config(third_octet: int = 16, alias: Optional[str] = None) -> SdnConfig:
-    return SdnConfig(vnet_configs=(simple_vnet_config(third_octet, alias),))
-
-
-def simple_vnet_config(
-    third_octet: int = 16, alias: Optional[str] = None
-) -> VnetConfig:
-    return VnetConfig(
-        subnets=(
-            SubnetConfig(
-                cidr=ip_network(f"192.168.{third_octet}.0/24"),
-                gateway=ip_address(f"192.168.{third_octet}.1"),
-                snat=True,
-                dhcp_ranges=(
-                    DhcpRange(
-                        start=ip_address(f"192.168.{third_octet}.50"),
-                        end=ip_address(f"192.168.{third_octet}.100"),
-                    ),
-                ),
-            ),
-        ),
-        alias=alias,
-    )
+SdnConfigType = Union[SdnConfig, Literal["auto"], None]
 
 
 class VmSourceConfig(BaseModel, frozen=True):
@@ -116,14 +92,14 @@ class VmConfig(BaseModel, frozen=True):
     vcpus: Optional[int] = 2
 
     # If nics is set, the VM will be connected to these VNets (one interface per VNet).
-    # If nics is left as the default empty tuple ():
+    # If nics is left as the default empty tuple (), the VM will not have any NICs.
+    # If nics is set to None, 
     #   If the vm_source_config is existing_backup_name or existing_vm_template_tag, the NICs will 
     #      be left as configured in the existing VM backup or template.
     #   If the vm_source_config is ova or built_in, it will be connected to the first VNet.
-    # If nics is set to None, the VM will not have any NICs.
     nics: Optional[Tuple[
         VmNicConfig, ...
-    ]] = ()
+    ]] = None
     is_sandbox: bool = True  # if True, the VM will show up as a sandbox. It must have the qemu-guest-agent installed
     uefi_boot: bool = False  # if True, the VM will boot in UEFI mode. In theory, this is already specified by OVA, but Proxmox doesn't seem to respect it.
 
@@ -139,9 +115,10 @@ class ProxmoxSandboxEnvironmentConfig(BaseModel, frozen=True):
     user_realm: str = Field(default_factory=lambda: get_env("PROXMOX_REALM"))
     password: str = Field(default_factory=lambda: get_env("PROXMOX_PASSWORD"))
 
-    # If not set, you will get a simple SDN with a single subnet. The IP addresses
+    # If set to "auto" you will get a simple SDN with a single subnet. The IP addresses
     # will not be predictable as it depends on what subnets already exist.
-    sdn_config: SdnConfig | None = None
+    # If set to None, no SDN will be created and the VMs will not be able to have any network interfaces.
+    sdn_config: SdnConfigType = "auto"
     vms_config: Tuple[VmConfig, ...] = (
         VmConfig(vm_source_config=VmSourceConfig(built_in="ubuntu24.04")),
     )

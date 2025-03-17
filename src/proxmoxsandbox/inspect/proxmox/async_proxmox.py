@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, List
 
 import httpx
 from inspect_ai.util import (
@@ -9,7 +9,7 @@ from inspect_ai.util import (
 from pydantic_core import from_json
 
 
-ProxmoxJsonDataType = Dict[str, Union[str, int, bool, None]]
+ProxmoxJsonDataType = Dict[str, Union[str, List[str], int, bool, None]]
 
 
 class AsyncProxmoxAPI:

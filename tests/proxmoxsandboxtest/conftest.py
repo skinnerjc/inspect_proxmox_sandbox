@@ -4,11 +4,12 @@ from typing import AsyncGenerator
 import pytest
 
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import ProxmoxSandboxEnvironmentConfig
 
 
 @pytest.fixture
-async def proxmox_api(
+async def async_proxmox_api(
     sandbox_env_config: ProxmoxSandboxEnvironmentConfig,
 ) -> AsyncGenerator[AsyncProxmoxAPI, None]:
     """Provides configured AsyncProxmoxAPI instance"""
@@ -23,3 +24,8 @@ async def proxmox_api(
 @pytest.fixture
 async def sandbox_env_config() -> ProxmoxSandboxEnvironmentConfig:
     return ProxmoxSandboxEnvironmentConfig()
+
+
+@pytest.fixture
+async def sdn_commands(async_proxmox_api: AsyncProxmoxAPI) -> SdnCommands:
+    return SdnCommands(async_proxmox_api, node="proxmox")

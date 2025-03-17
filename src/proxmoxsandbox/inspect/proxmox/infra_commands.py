@@ -1,7 +1,6 @@
 import abc
 from logging import getLogger
-from random import shuffle
-from typing import Dict, Tuple, List, Optional
+from typing import Dict, Tuple
 
 from inspect_ai.util import trace_action
 
@@ -10,10 +9,8 @@ from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands
 from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
 from proxmoxsandbox.inspect.schema import (
-    SdnConfig,
+    SdnConfigType,
     VmConfig,
-    VnetConfig,
-    simple_vnet_config,
 )
 
 
@@ -38,16 +35,12 @@ class InfraCommands(abc.ABC):
     async def create_sdn_and_vms(
         self,
         proxmox_ids_start: str,
-        sdn_config: SdnConfig,
+        sdn_config: SdnConfigType,
         vms_config: Tuple[VmConfig, ...],
         known_builtins: Dict[str, int],
     ):
         vm_configs_with_ids = []
-        sdn_zone_id = None
-        if (sdn_config is None) or (not sdn_config.vnet_configs):
-            raise ValueError(f"SDN config must be provided; {sdn_config=};")
-
-        sdn_zone_id, vnet_id, vnet_aliases = await self.sdn_commands.create_sdn(
+        sdn_zone_id, vnet_aliases = await self.sdn_commands.create_sdn(
             proxmox_ids_start, sdn_config
         )
 
@@ -77,36 +70,3 @@ class InfraCommands(abc.ABC):
             await self.qemu_commands.destroy_vm(vm_id=vm_id)
         if sdn_zone_id is not None:
             await self.sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id=sdn_zone_id)
-
-    async def generate_sdn_config(
-        self, aliases: Tuple[Optional[str], ...] = ()
-    ) -> SdnConfig:
-        if len(aliases) == 0:
-            aliases = (None,)
-
-        vnet_configs: List[VnetConfig] = []
-        for alias in aliases:
-            try_third_octets = list(range(2, 253))
-            # Deliberately randomize the IP address range you get if you don't specify one.
-            # This is to avoid brittle evals
-            shuffle(try_third_octets)
-            ok_vnet_config = None
-            for third_octet in try_third_octets:
-                try_vnet_config = simple_vnet_config(
-                    third_octet=third_octet, alias=alias
-                )
-                try:
-                    await self.sdn_commands.check_cidrs(vnet_configs=[try_vnet_config])
-                    ok_vnet_config = try_vnet_config
-                    vnet_configs.append(ok_vnet_config)
-                    break
-                except ValueError:
-                    continue
-            if ok_vnet_config is None:
-                raise ValueError("Could not find a suitable IP range for the SDN")
-            # There is obviously a race condition here. Another eval could sneak in and create a clashing
-            # IP range.
-            # We could use a 10.*/24 range instead, which would give us many more ranges and
-            # reduce the chance of a collision.
-
-        return SdnConfig(vnet_configs=tuple(vnet_configs))
