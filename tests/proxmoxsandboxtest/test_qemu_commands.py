@@ -1,6 +1,13 @@
 from proxmoxsandbox.inspect.proxmox.built_in_vm import BuiltInVM
 from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands, VnetAliases
-from proxmoxsandbox.inspect.schema import VmConfig, VmSourceConfig
+from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
+from proxmoxsandbox.inspect.schema import (
+    SdnConfig,
+    VmConfig,
+    VmNicConfig,
+    VmSourceConfig,
+    VnetConfig,
+)
 
 
 async def test_simple_vm_non_sandbox(
@@ -112,8 +119,46 @@ async def test_none_nic_from_built_in(
     await qemu_commands.destroy_vm(new_vm_id)
 
 
-async def test_multiple_nic():
-    pass
+async def test_multiple_nic(
+    qemu_commands: QemuCommands,
+    built_in_vm: BuiltInVM,
+    sdn_commands: SdnCommands,
+    ids_start: str,
+):
+    built_in_ubuntu = VmSourceConfig(built_in="ubuntu24.04")
+
+    await built_in_vm.ensure_exists(built_in_ubuntu)
+
+    sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(
+        ids_start,
+        sdn_config=SdnConfig(
+            vnet_configs=(
+                VnetConfig(alias="vnetA"),
+                VnetConfig(alias="vnetB"),
+            ),
+            use_pve_ipam_dnsnmasq=False,
+        ),
+    )
+
+    new_vm_id = await qemu_commands.create_and_start_vm(
+        sdn_vnet_aliases=vnet_aliases,
+        vm_config=VmConfig(
+            vm_source_config=built_in_ubuntu,
+            nics=(VmNicConfig(vnet_alias="vnetB"), VmNicConfig(vnet_alias="vnetA")),
+        ),
+        built_in_vm_ids=await built_in_vm.known_builtins(),
+    )
+
+    new_vm = await qemu_commands.read_vm(new_vm_id)
+    assert "net0" in new_vm
+    assert vnet_aliases[1][0] in new_vm["net0"]
+    assert vnet_aliases[1][1] == "vnetB"
+    assert "net1" in new_vm
+    assert vnet_aliases[0][0] in new_vm["net1"]
+    assert vnet_aliases[0][1] == "vnetA"
+
+    await qemu_commands.destroy_vm(new_vm_id)
+    await sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id)
 
 
 async def test_empty_nic_from_built_in(

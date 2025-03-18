@@ -12,15 +12,13 @@ from proxmoxsandbox.inspect.proxmox.async_proxmox import (
     AsyncProxmoxAPI,
     ProxmoxJsonDataType,
 )
+from proxmoxsandbox.inspect.proxmox.sdn_commands import VnetAliases
 from proxmoxsandbox.inspect.proxmox.storage_commands import StorageCommands
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
 from proxmoxsandbox.inspect.schema import (
     VmConfig,
 )
 
- # a List tuples of [vnet ID, vnet alias], for a particular sdn_zone_id. 
- # The alias may be None for a given ID.
-VnetAliases: TypeAlias = List[Tuple[str, str | None]]
 
 class QemuCommands(abc.ABC):
     logger = getLogger(__name__)

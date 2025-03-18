@@ -1,27 +1,27 @@
 import abc
-from ipaddress import ip_network
+from ipaddress import ip_address, ip_network
 from logging import getLogger
-from typing import List, Tuple, Optional
+from random import shuffle
+from typing import List, Optional, Tuple, TypeAlias
 
 from inspect_ai.util import trace_action
 
-from random import shuffle
-
-from ipaddress import ip_address, ip_network
 from proxmoxsandbox.inspect.proxmox.async_proxmox import (
     AsyncProxmoxAPI,
     ProxmoxJsonDataType,
 )
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
-from proxmoxsandbox.inspect.schema import SdnConfig, SdnConfigType, VnetConfig
-
 from proxmoxsandbox.inspect.schema import (
+    DhcpRange,
     SdnConfig,
     SdnConfigType,
-    VnetConfig,
     SubnetConfig,
-    DhcpRange,
+    VnetConfig,
 )
+
+ # a List tuples of [vnet ID, vnet alias], for a particular sdn_zone_id. 
+ # The alias may be None for a given ID.
+VnetAliases: TypeAlias = List[Tuple[str, str | None]]
 
 
 class SdnCommands(abc.ABC):
@@ -152,7 +152,7 @@ class SdnCommands(abc.ABC):
 
     async def create_sdn(
         self, proxmox_ids_start: str, sdn_config: SdnConfigType
-    ) -> Tuple[Optional[str], List[Tuple[str, str | None]]]:
+    ) -> Tuple[Optional[str], VnetAliases]:
         if sdn_config is None:
             return None, []
 
@@ -188,7 +188,7 @@ class SdnCommands(abc.ABC):
                 json=zone_create_json,
             )
 
-            vnet_aliases: List[Tuple[str, str | None]] = []
+            vnet_aliases: VnetAliases = []
 
             for idx, vnet_config in enumerate(resolved_sdn_config.vnet_configs):
                 vnet_id = f"{proxmox_ids_start}v{idx}"
