@@ -1,12 +1,9 @@
 from pathlib import Path
 
 from proxmoxsandboxtest.proxmox_sandbox_utils import (
-    setup_requests_logging,
     setup_sandbox,
 )
 
-from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
 from proxmoxsandbox.inspect.schema import (
     DhcpRange,
@@ -14,8 +11,8 @@ from proxmoxsandbox.inspect.schema import (
     SdnConfig,
     SubnetConfig,
     VmConfig,
-    VmSourceConfig,
     VmNicConfig,
+    VmSourceConfig,
     VnetConfig,
 )
 
@@ -105,6 +102,9 @@ async def test_built_in() -> None:
         assert "2345MiB" in mem_result.stdout, (
             f"Unexpected result of /proc/meminfo: {mem_result=}"
         )
+
+        uefi_result = await sandbox.exec(["efibootmgr"])
+        assert uefi_result.success, f"Failed to run efibootmgr: {uefi_result=}"
     finally:
         await ProxmoxSandboxEnvironment.sample_cleanup(
             task_name="unused",
