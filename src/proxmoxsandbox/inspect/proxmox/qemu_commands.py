@@ -185,9 +185,9 @@ class QemuCommands(abc.ABC):
                             "archive": f"/var/lib/vz/dump/{vm_config.vm_source_config.existing_backup_name}",
                         },
                     )
-                    # todo other config
 
                 await self.task_wrapper.do_action_and_wait_for_tasks(create_from_backup)
+                await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
 
             await self.start_and_await(
                 vm_id=new_vm_id,
@@ -425,8 +425,8 @@ class QemuCommands(abc.ABC):
         new_backup = next(
             backup
             for backup in all_backups
-            if backup["volid"] not in (existing["volid"] for existing in existing_backups)
+            if backup["volid"]
+            not in (existing["volid"] for existing in existing_backups)
         )
 
         return new_backup
-

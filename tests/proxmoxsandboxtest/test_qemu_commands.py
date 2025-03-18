@@ -292,9 +292,6 @@ async def test_restore_from_backup(
 
     backup = await qemu_commands.create_backup(vm_id_for_backup_source)
 
-    # volid looks like:
-    # 'local:backup/vzdump-qemu-103-2025_03_18-15_34_14.vma.zst'
-
     sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(
         ids_start,
         sdn_config=SdnConfig(
@@ -307,15 +304,17 @@ async def test_restore_from_backup(
     )
 
     new_vm_id = await qemu_commands.create_and_start_vm(
-        sdn_vnet_aliases=[],
+        sdn_vnet_aliases=vnet_aliases,
         vm_config=VmConfig(
             vm_source_config=VmSourceConfig(
+                # volid looks like:
+                # 'local:backup/vzdump-qemu-103-2025_03_18-15_34_14.vma.zst'
                 existing_backup_name=backup["volid"].split("/")[-1]
             ),
             nics=(VmNicConfig(vnet_alias="vnetC"), VmNicConfig(vnet_alias="vnetD")),
             is_sandbox=True,
         ),
-        built_in_vm_ids=await built_in_vm.known_builtins(),
+        built_in_vm_ids={},
     )
 
     await async_proxmox_api.ping_qemu_agent("proxmox", new_vm_id)
@@ -323,7 +322,7 @@ async def test_restore_from_backup(
     new_vm = await qemu_commands.read_vm(new_vm_id)
     assert "net0" in new_vm
     assert vnet_aliases[0][0] in new_vm["net0"]
-    assert vnet_aliases[0][1] == "vnetD"
+    assert vnet_aliases[0][1] == "vnetC"
     assert "net1" in new_vm
     assert vnet_aliases[1][0] in new_vm["net1"]
     assert vnet_aliases[1][1] == "vnetD"
