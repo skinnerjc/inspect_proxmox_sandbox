@@ -251,7 +251,7 @@ async def test_uefi(
             is_sandbox=True,
             uefi_boot=True,
         ),
-        built_in_vm_ids=await built_in_vm.known_xbuiltins(),
+        built_in_vm_ids=await built_in_vm.known_builtins(),
     )
 
     new_vm = await qemu_commands.read_vm(new_vm_id)

@@ -100,7 +100,7 @@ async def test_built_in() -> None:
 
         mem_result = await sandbox.exec(["lshw", "-short", "-c", "memory"])
         assert "2345MiB" in mem_result.stdout, (
-            f"Unexpected result of /proc/meminfo: {mem_result=}"
+            f"Unexpected result of lshw: {mem_result=}"
         )
 
         uefi_result = await sandbox.exec(["efibootmgr"])
