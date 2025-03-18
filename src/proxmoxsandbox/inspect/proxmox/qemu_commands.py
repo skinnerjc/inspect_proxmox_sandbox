@@ -2,7 +2,7 @@ import abc
 import tarfile
 from logging import getLogger
 from pathlib import Path
-from typing import Dict, List, Tuple, TypeAlias
+from typing import Dict
 
 import tenacity
 from inspect_ai.util import trace_action
@@ -15,9 +15,7 @@ from proxmoxsandbox.inspect.proxmox.async_proxmox import (
 from proxmoxsandbox.inspect.proxmox.sdn_commands import VnetAliases
 from proxmoxsandbox.inspect.proxmox.storage_commands import StorageCommands
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
-from proxmoxsandbox.inspect.schema import (
-    VmConfig,
-)
+from proxmoxsandbox.inspect.schema import VmConfig
 
 
 class QemuCommands(abc.ABC):
@@ -404,7 +402,9 @@ class QemuCommands(abc.ABC):
             json_for_create["bios"] = "ovmf"
 
     async def ping_qemu_agent(self, node: str, vm_id: int):
-        await self.async_proxmox.request("POST", f"/nodes/{node}/qemu/{vm_id}/agent/ping")
+        await self.async_proxmox.request(
+            "POST", f"/nodes/{node}/qemu/{vm_id}/agent/ping"
+        )
 
     async def create_backup(self, vm_id: int) -> None:
         existing_backups = await self.async_proxmox.request(

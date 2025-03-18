@@ -64,6 +64,7 @@ sandbox=SandboxEnvironmentSpec(
                 name="romeo", # name is optional, but recommended - it will be shown in the Proxmox GUI
                 ram_mb=512 # optional, default is 2048 MB
                 vcpus=4 # optional, default is 2. No attempt is made to check that this will fit in the Proxmox host.
+                uefi_boot=True # optional, default is False. Generally only needed for Windows VMs.
             ),
             # A virtual machine from a local OVA, which will be uploaded from here to the Proxmox server.
             VmConfig(
@@ -71,18 +72,14 @@ sandbox=SandboxEnvironmentSpec(
                     ova=Path("./tests/oVirtTinyCore64-13.11.ova")
                 ),
             ),
-            # A virtual machine from a hosted OVA, which will be downloaded by the Proxmox server.
-            VmConfig(
-                vm_source_config=VmSourceConfig(
-                    ova=HttpUrl("https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.ova")
-                ),
-            ),
             # A virtual machine to clone from an existing template VM.
             # This is *not recommended* since it is dependent on configuring a 
             # customised Proxmox instance that contains the template VM before
             # the eval start.
             VmConfig(
-                existing_vm_template_tag = "java_server"
+                vm_source_config=VmSourceConfig(
+                    existing_vm_template_tag="java_server"
+                ),
             ),
             # A virtual machine to restore from backup.
             # This is *not recommended* since it is dependent on configuring a 
@@ -116,7 +113,7 @@ sandbox=SandboxEnvironmentSpec(
         ),
         # You will need a separate SDN per sample, or the VMs will be able to see each other
         # IP ranges *must* be distinct, unfortunately.
-        # If you don't care about any of this, you can leave this blank
+        # If you don't care about any of this, you can set this field to the string "auto"
         # and you will get an IP range somewhere in 192.168.[2 - 253].0/24
         sdn_config=SdnConfig(
             vnet_configs=(
@@ -192,7 +189,6 @@ including the running processes. See [snapshots.py](./src/proxmoxsandbox/experim
 ## Tech debt
 
 - Types, mypy, ruff, etc.
-- Test coverage is not great and it's not well documented how to get started running them
 - Does not work with Inspect's post-hoc sandbox cleanup feature
 
 ## Developing

@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Annotated, Literal, Optional, Tuple, TypeAlias, Union
 
 from pydantic import BaseModel, Field, model_validator
-from pydantic.networks import HttpUrl, IPvAnyAddress, IPvAnyNetwork
+from pydantic.networks import IPvAnyAddress, IPvAnyNetwork
 from pydantic_extra_types.mac_address import MacAddress
 
 
