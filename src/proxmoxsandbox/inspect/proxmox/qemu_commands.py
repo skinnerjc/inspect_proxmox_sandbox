@@ -402,3 +402,31 @@ class QemuCommands(abc.ABC):
         if vm_config.uefi_boot:
             json_for_create["efidisk0"] = "local-lvm:0,efitype=4m,pre-enrolled-keys=0"
             json_for_create["bios"] = "ovmf"
+
+    async def create_backup(self, vm_id: int) -> None:
+        existing_backups = await self.async_proxmox.request(
+            "GET", "/nodes/proxmox/storage/local/content?content=backup"
+        )
+
+        async def do_backup():
+            await self.async_proxmox.request(
+                "POST",
+                "/nodes/proxmox/vzdump",
+                json={"vmid": vm_id, "compress": "zstd"},
+            )
+
+        await self.task_wrapper.do_action_and_wait_for_tasks(do_backup)
+
+        all_backups = await self.async_proxmox.request(
+            "GET", "/nodes/proxmox/storage/local/content?content=backup"
+        )
+
+        # find the new backup; it will have a "volid" field not matching any volid in a dict in existing_backups:
+        new_backup = next(
+            backup
+            for backup in all_backups
+            if backup["volid"] not in (existing["volid"] for existing in existing_backups)
+        )
+
+        return new_backup
+

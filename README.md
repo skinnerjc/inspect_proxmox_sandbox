@@ -185,7 +185,6 @@ including the running processes. See [snapshots.py](./src/proxmoxsandbox/experim
 - Proxmox server health and config check
 - Normalize having a second pfSense VM as the default route for networking
 - Firewall off the SDN from the Proxmox server and from other SDNs
-- Support existing_vm_template_tag VM source
 - Add more built-in VMs (Debian, Kali)
 - Support cloud-init for VM definition
 - Cache VM definition as tagged template VMs
