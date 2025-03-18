@@ -110,6 +110,11 @@ sandbox=SandboxEnvironmentSpec(
                     ),
                 )
             ),
+            # A virtual machine with no network access.
+            VmConfig(
+                # ... snip ...           
+                nics=()
+            ),
         ),
         # You will need a separate SDN per sample, or the VMs will be able to see each other
         # IP ranges *must* be distinct, unfortunately.
@@ -123,6 +128,7 @@ sandbox=SandboxEnvironmentSpec(
                         SubnetConfig(
                             cidr=ip_network("192.168.20.0/24"),
                             gateway=ip_address("192.168.20.1"),
+                            # If you set snat=False, VMs will see each other but not the wider Internet.
                             snat=True,
                             dhcp_ranges=(
                                 DhcpRange(
@@ -135,7 +141,7 @@ sandbox=SandboxEnvironmentSpec(
                     alias="my special vnet"
                 ),
             ),
-            # Set use_pve_ipam_dnsnmasq to True if you want your instances to be able to access the internet
+            # Set use_pve_ipam_dnsnmasq to True if you want your instances to be able to access the Internet
             use_pve_ipam_dnsnmasq=True,
         ),
     ),
