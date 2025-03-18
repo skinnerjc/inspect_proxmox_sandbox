@@ -28,7 +28,7 @@ from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
 from proxmoxsandbox.inspect.schema import (
     ProxmoxSandboxEnvironmentConfig,
-    SdnConfig,
+    SdnConfigType,
 )
 
 # node name is hardcoded, could make it configurable
@@ -45,7 +45,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
     agent_commands: AgentCommands
     task_wrapper: TaskWrapper
     built_in_vm: BuiltInVM
-    sdn_config: SdnConfig | None
+    sdn_config: SdnConfigType
     vm_id: int
     all_vm_ids: Tuple[int, ...]
     sdn_zone_id: str | None
@@ -53,7 +53,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
     def __init__(
         self,
         proxmox: AsyncProxmoxAPI,
-        sdn_config: SdnConfig | None,
+        sdn_config: SdnConfigType,
         vm_id: int,
         all_vm_ids: Tuple[int, ...],
         sdn_zone_id: str | None,

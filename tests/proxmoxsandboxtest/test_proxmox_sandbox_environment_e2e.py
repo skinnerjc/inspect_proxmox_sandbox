@@ -9,22 +9,72 @@ from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
 from proxmoxsandbox.inspect.schema import (
+    DhcpRange,
     ProxmoxSandboxEnvironmentConfig,
+    SdnConfig,
+    SubnetConfig,
     VmConfig,
     VmSourceConfig,
-    VmNicConfig
+    VmNicConfig,
+    VnetConfig,
 )
 
 CURRENT_DIR = Path(__file__).parent
 
 
-async def test_smoke() -> None:
+async def test_built_in() -> None:
     envs_dict = {}
-    sandbox_env_config = ProxmoxSandboxEnvironmentConfig()
+    sandbox_env_config = ProxmoxSandboxEnvironmentConfig(
+        sdn_config=SdnConfig(
+            vnet_configs=(
+                VnetConfig(
+                    alias="vnet80",
+                    subnets=(
+                        SubnetConfig(
+                            cidr="10.80.0.0/24",
+                            gateway="10.80.0.1",
+                            snat=False,
+                            dhcp_ranges=(
+                                DhcpRange(start="10.80.0.16", end="10.80.0.32"),
+                            ),
+                        ),
+                    ),
+                ),
+                VnetConfig(
+                    alias="vnet81",
+                    subnets=(
+                        SubnetConfig(
+                            cidr="10.81.0.0/24",
+                            gateway="10.81.0.1",
+                            snat=False,
+                            dhcp_ranges=(
+                                DhcpRange(start="10.81.0.16", end="10.81.0.32"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            use_pve_ipam_dnsnmasq=True,
+        ),
+        vms_config=(
+            VmConfig(
+                vm_source_config=VmSourceConfig(built_in="ubuntu24.04"),
+                nics=(
+                    VmNicConfig(vnet_alias="vnet80"),
+                    VmNicConfig(vnet_alias="vnet81"),
+                ),
+                ram_mb=2345,
+                vcpus=3,
+                is_sandbox=True,
+                uefi_boot=True,
+            ),
+        ),
+    )
     try:
         task_name = "sandbox_test_smoketask"
         task_name, envs_dict = await setup_sandbox(task_name, sandbox_env_config)
-        uname_result = await envs_dict["default"].exec(
+        sandbox = envs_dict["default"]
+        uname_result = await sandbox.exec(
             [
                 "uname",
                 "-a",
@@ -33,6 +83,27 @@ async def test_smoke() -> None:
         assert uname_result.success, f"Failed to run uname: {uname_result=}"
         assert "Ubuntu" in uname_result.stdout, (
             f"Unexpected result of uname: {uname_result.stdout=}"
+        )
+
+        ipa_result = await sandbox.exec(
+            [
+                "ip",
+                "addr",
+            ]
+        )
+        assert uname_result.success, f"Failed to run ip addr: {ipa_result=}"
+        assert "10.80.0" in ipa_result.stdout and "10.81.0" in ipa_result.stdout, (
+            f"Unexpected result of ip addr: {ipa_result.stdout=}"
+        )
+
+        nproc_result = await sandbox.exec(["nproc"])
+        assert "3" == nproc_result.stdout.strip(), (
+            f"Unexpected result of nproc: {nproc_result=}"
+        )
+
+        mem_result = await sandbox.exec(["lshw", "-short", "-c", "memory"])
+        assert "2345MiB" in mem_result.stdout, (
+            f"Unexpected result of /proc/meminfo: {mem_result=}"
         )
     finally:
         await ProxmoxSandboxEnvironment.sample_cleanup(
@@ -87,16 +158,6 @@ async def test_multiple_sandboxes(sandbox_env_config) -> None:
         )
 
 
-async def test_multiple_vnets(proxmox_api: AsyncProxmoxAPI) -> None:
-    # TODO rewrite this to check VmConfig.nics
-    pass
-
-async def test_vnet_mix_alias_or_not(proxmox_api: AsyncProxmoxAPI) -> None:
-    # TODO rewrite this to check VmConfig.nics
-    pass
-
-
-
 async def test_ova() -> None:
     envs_dict = {}
     sandbox_env_config = ProxmoxSandboxEnvironmentConfig(
@@ -104,9 +165,7 @@ async def test_ova() -> None:
             VmConfig(
                 vm_source_config=VmSourceConfig(
                     ova=CURRENT_DIR / ".." / "oVirtTinyCore64-13.11.ova"
-                ),
-                ram_mb=512,
-                vcpus=3
+                )
             ),
         )
     )
@@ -142,7 +201,10 @@ async def test_everything(proxmox_api) -> None:
         vms_config=(
             VmConfig(
                 vm_source_config=VmSourceConfig(built_in="ubuntu24.04"),
-                nics=(VmNicConfig(vnet_alias="alias1"), VmNicConfig(vnet_alias="alias2")),
+                nics=(
+                    VmNicConfig(vnet_alias="alias1"),
+                    VmNicConfig(vnet_alias="alias2"),
+                ),
             ),
             VmConfig(
                 vm_source_config=VmSourceConfig(built_in="ubuntu24.04"),
@@ -152,7 +214,10 @@ async def test_everything(proxmox_api) -> None:
                 vm_source_config=VmSourceConfig(
                     ova=Path("./tests/oVirtTinyCore64-13.11.ova")
                 ),
-                nics=(VmNicConfig(vnet_alias="alias1"), VmNicConfig(vnet_alias="alias2")),
+                nics=(
+                    VmNicConfig(vnet_alias="alias1"),
+                    VmNicConfig(vnet_alias="alias2"),
+                ),
                 is_sandbox=True,
             ),
             VmConfig(
