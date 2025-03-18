@@ -30,7 +30,7 @@ async def test_built_in() -> None:
                         SubnetConfig(
                             cidr="10.80.0.0/24",
                             gateway="10.80.0.1",
-                            snat=False,
+                            snat=True,
                             dhcp_ranges=(
                                 DhcpRange(start="10.80.0.16", end="10.80.0.32"),
                             ),
@@ -43,7 +43,7 @@ async def test_built_in() -> None:
                         SubnetConfig(
                             cidr="10.81.0.0/24",
                             gateway="10.81.0.1",
-                            snat=False,
+                            snat=True,
                             dhcp_ranges=(
                                 DhcpRange(start="10.81.0.16", end="10.81.0.32"),
                             ),
@@ -105,6 +105,15 @@ async def test_built_in() -> None:
 
         uefi_result = await sandbox.exec(["efibootmgr"])
         assert uefi_result.success, f"Failed to run efibootmgr: {uefi_result=}"
+
+        # check internet connectivity excluding DNS
+        curl_nodns_result = await sandbox.exec(["curl", "--fail", "http://1.1.1.1"])
+        assert curl_nodns_result.success, f"Failed to run curl without dns: {curl_nodns_result=}"
+
+        # check internet connectivity with DNS
+        curl_result = await sandbox.exec(["curl", "--fail", "http://amazon.com"])
+        assert curl_result.success, f"Failed to run curl: {curl_result=}"
+
     finally:
         await ProxmoxSandboxEnvironment.sample_cleanup(
             task_name="unused",
