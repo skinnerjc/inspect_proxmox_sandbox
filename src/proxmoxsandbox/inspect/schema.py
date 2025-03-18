@@ -1,9 +1,10 @@
 import os
-from typing import Annotated, Literal, Optional, Tuple, Union
-from pydantic_extra_types.mac_address import MacAddress
-from pydantic import BaseModel, Field, model_validator
-from pydantic.networks import IPvAnyAddress, IPvAnyNetwork, HttpUrl
 from pathlib import Path
+from typing import Annotated, Literal, Optional, Tuple, TypeAlias, Union
+
+from pydantic import BaseModel, Field, model_validator
+from pydantic.networks import HttpUrl, IPvAnyAddress, IPvAnyNetwork
+from pydantic_extra_types.mac_address import MacAddress
 
 
 class DhcpRange(BaseModel, frozen=True):
@@ -34,7 +35,7 @@ class SdnConfig(BaseModel, frozen=True):
     # Set this to False if you want to use your own pfsense instance to handle IPAM (recommended)
     use_pve_ipam_dnsnmasq: bool = True
 
-SdnConfigType = Union[SdnConfig, Literal["auto"], None]
+SdnConfigType: TypeAlias = Union[SdnConfig, Literal["auto"], None]
 
 
 class VmSourceConfig(BaseModel, frozen=True):

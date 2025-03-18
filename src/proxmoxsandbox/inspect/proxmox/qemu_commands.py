@@ -2,7 +2,7 @@ import abc
 import tarfile
 from logging import getLogger
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, TypeAlias
 
 import tenacity
 from inspect_ai.util import trace_action
@@ -18,6 +18,9 @@ from proxmoxsandbox.inspect.schema import (
     VmConfig,
 )
 
+ # a List tuples of [vnet ID, vnet alias], for a particular sdn_zone_id. 
+ # The alias may be None for a given ID.
+VnetAliases: TypeAlias = List[Tuple[str, str | None]]
 
 class QemuCommands(abc.ABC):
     logger = getLogger(__name__)
@@ -151,7 +154,7 @@ class QemuCommands(abc.ABC):
         )
 
     def _convert_sdn_vnet_aliases(
-        self, sdn_vnet_aliases: List[Tuple[str, str | None]]
+        self, sdn_vnet_aliases: VnetAliases
     ) -> Dict[str, str]:
         """Convert list of (vnet_id, vnet_alias) tuples to alias->id mapping, skipping None aliases."""
         return {
@@ -160,9 +163,7 @@ class QemuCommands(abc.ABC):
 
     async def create_and_start_vm(
         self,
-        sdn_vnet_aliases: List[
-            Tuple[str, str | None]
-        ],  # a List tuples of [vnet ID, vnet alias], for the particular sdn_zone_id. The vnet alias may be None.
+        sdn_vnet_aliases: VnetAliases,
         vm_config: VmConfig,
         built_in_vm_ids: Dict[str, int],
     ) -> int:
@@ -326,7 +327,7 @@ class QemuCommands(abc.ABC):
     async def configure_network(
         self,
         vm_config: VmConfig,
-        sdn_vnet_aliases: List[Tuple[str, str | None]],
+        sdn_vnet_aliases: VnetAliases,
         vm_id: int,
     ) -> None:
         async def update_network() -> None:
@@ -363,7 +364,7 @@ class QemuCommands(abc.ABC):
         self,
         vm_config: VmConfig,
         vm_id_to_clone: int,
-        sdn_vnet_aliases: List[Tuple[str, str | None]],
+        sdn_vnet_aliases: VnetAliases,
     ) -> int:
         new_vm_id = await self.find_next_available_vm_id()
 

@@ -6,7 +6,7 @@ import pytest
 
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox.inspect.proxmox.built_in_vm import BuiltInVM
-from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands
+from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands, VnetAliases
 from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
     ProxmoxSandboxEnvironmentConfig,
@@ -50,3 +50,12 @@ async def built_in_vm(async_proxmox_api: AsyncProxmoxAPI) -> SdnCommands:
 async def ids_start() -> str:
     ids_start = f"cts{random.randint(100, 999)}"
     return ids_start
+
+
+@pytest.fixture()
+async def auto_sdn_vnet_aliases(
+    ids_start: str, sdn_commands: SdnCommands
+) -> AsyncGenerator[VnetAliases, None]:
+    sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(ids_start, "auto")
+    yield vnet_aliases
+    await sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id)
