@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pytest
 
-from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox.inspect.proxmox.built_in_vm import BuiltInVM
 from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands, VnetAliases
 from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
@@ -192,10 +191,7 @@ async def test_empty_nic_from_built_in(
     await qemu_commands.destroy_vm(new_vm_id)
 
 
-async def test_from_ova_local(
-    qemu_commands: QemuCommands,
-    async_proxmox_api: AsyncProxmoxAPI,
-):
+async def test_from_ova_local(qemu_commands: QemuCommands):
     new_vm_id = await qemu_commands.create_and_start_vm(
         sdn_vnet_aliases=[],
         vm_config=VmConfig(
@@ -211,7 +207,7 @@ async def test_from_ova_local(
         built_in_vm_ids={},
     )
 
-    await async_proxmox_api.ping_qemu_agent("proxmox", new_vm_id)
+    await qemu_commands.ping_qemu_agent("proxmox", new_vm_id)
 
     await qemu_commands.destroy_vm(new_vm_id)
 
@@ -222,10 +218,7 @@ async def test_from_ova_local(
 # AISI has one internally which can be provided on request, but it is
 # nearly 1GB in size and hence not checked in to this repo.
 @pytest.mark.skip
-async def test_from_ova_uefi_sandbox(
-    qemu_commands: QemuCommands,
-    async_proxmox_api: AsyncProxmoxAPI,
-):
+async def test_from_ova_uefi_sandbox(qemu_commands: QemuCommands):
     new_vm_id = await qemu_commands.create_and_start_vm(
         sdn_vnet_aliases=[],
         vm_config=VmConfig(
@@ -237,7 +230,7 @@ async def test_from_ova_uefi_sandbox(
         built_in_vm_ids={},
     )
 
-    await async_proxmox_api.ping_qemu_agent("proxmox", new_vm_id)
+    await qemu_commands.ping_qemu_agent("proxmox", new_vm_id)
 
     await qemu_commands.destroy_vm(new_vm_id)
 
@@ -246,7 +239,6 @@ async def test_uefi(
     qemu_commands: QemuCommands,
     auto_sdn_vnet_aliases: VnetAliases,
     built_in_vm: BuiltInVM,
-    async_proxmox_api: AsyncProxmoxAPI,
 ):
     built_in_ubuntu = VmSourceConfig(built_in="ubuntu24.04")
 
@@ -266,7 +258,7 @@ async def test_uefi(
     assert new_vm["agent"] == "enabled=1"
     assert new_vm["bios"] == "ovmf"
 
-    await async_proxmox_api.ping_qemu_agent("proxmox", new_vm_id)
+    await qemu_commands.ping_qemu_agent("proxmox", new_vm_id)
 
     await qemu_commands.destroy_vm(new_vm_id)
 
@@ -274,7 +266,6 @@ async def test_uefi(
 async def test_restore_from_backup(
     qemu_commands: QemuCommands,
     built_in_vm: BuiltInVM,
-    async_proxmox_api: AsyncProxmoxAPI,
     sdn_commands: SdnCommands,
     ids_start: str,
 ) -> None:
@@ -319,7 +310,7 @@ async def test_restore_from_backup(
         built_in_vm_ids={},
     )
 
-    await async_proxmox_api.ping_qemu_agent("proxmox", new_vm_id)
+    await qemu_commands.ping_qemu_agent("proxmox", new_vm_id)
 
     new_vm = await qemu_commands.read_vm(new_vm_id)
     assert "net0" in new_vm

@@ -110,8 +110,8 @@ class AsyncProxmoxAPI:
             headers["CSRFPreventionToken"] = self.csrf_token
         return headers
 
-    # this more naturally belongs in qemu_commands but it's here because of read_file
-    async def ping_qemu_agent(self, node: str, vm_id: int):
+    # this more naturally belongs in qemu_commands but it's copied here because of read_file
+    async def _ping_qemu_agent(self, node: str, vm_id: int):
         await self.request("POST", f"/nodes/{node}/qemu/{vm_id}/agent/ping")
 
     async def read_file(
@@ -139,7 +139,7 @@ class AsyncProxmoxAPI:
             timeout=httpx.Timeout(connect=5, read=60, write=60, pool=60),
         ) as client:
             # ping to refresh token if needed, so we don't have to do it in the stream
-            await self.ping_qemu_agent(node, vm_id)
+            await self._ping_qemu_agent(node, vm_id)
 
             async with client.stream(
                 "GET",

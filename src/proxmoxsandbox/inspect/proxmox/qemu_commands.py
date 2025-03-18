@@ -69,7 +69,7 @@ class QemuCommands(abc.ABC):
                 stop=tenacity.stop_after_delay(300),
             )
             async def qemu_agent_reachable() -> None:
-                await self.async_proxmox.ping_qemu_agent(self.node, vm_id)
+                await self.ping_qemu_agent(self.node, vm_id)
 
             with trace_action(
                 self.logger, self.TRACE_NAME, f"await VM {vm_id} QEMU agent"
@@ -402,6 +402,9 @@ class QemuCommands(abc.ABC):
         if vm_config.uefi_boot:
             json_for_create["efidisk0"] = "local-lvm:0,efitype=4m,pre-enrolled-keys=0"
             json_for_create["bios"] = "ovmf"
+
+    async def ping_qemu_agent(self, node: str, vm_id: int):
+        await self.async_proxmox.request("POST", f"/nodes/{node}/qemu/{vm_id}/agent/ping")
 
     async def create_backup(self, vm_id: int) -> None:
         existing_backups = await self.async_proxmox.request(
