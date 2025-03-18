@@ -283,7 +283,9 @@ async def test_restore_from_backup(
     vm_id_for_backup_source = await qemu_commands.create_and_start_vm(
         sdn_vnet_aliases=[],
         vm_config=VmConfig(
-            vm_source_config=VmSourceConfig(built_in="ubuntu24.04"),
+            vm_source_config=VmSourceConfig(
+                ova=CURRENT_DIR / ".." / "oVirtTinyCore64-13.11.ova"
+            ),
             nics=(),
             is_sandbox=True,
         ),
