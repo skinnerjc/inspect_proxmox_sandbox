@@ -110,6 +110,7 @@ class AsyncProxmoxAPI:
             headers["CSRFPreventionToken"] = self.csrf_token
         return headers
 
+    # this more naturally belongs in qemu_commands but it's here because of read_file
     async def ping_qemu_agent(self, node: str, vm_id: int):
         await self.request("POST", f"/nodes/{node}/qemu/{vm_id}/agent/ping")
 

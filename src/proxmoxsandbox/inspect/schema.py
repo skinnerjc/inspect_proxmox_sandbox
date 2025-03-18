@@ -35,6 +35,7 @@ class SdnConfig(BaseModel, frozen=True):
     # Set this to False if you want to use your own pfsense instance to handle IPAM (recommended)
     use_pve_ipam_dnsnmasq: bool = True
 
+
 SdnConfigType: TypeAlias = Union[SdnConfig, Literal["auto"], None]
 
 
@@ -42,16 +43,14 @@ class VmSourceConfig(BaseModel, frozen=True):
     existing_vm_template_tag: str | None = (
         None  # if the VM exists as a template with this tag, clone it from that
     )
-    ova: Path | HttpUrl | None = (
-        None  # otherwise, the VM will be created from this OVA
-        # If you pass a Path, the OVA will be uploaded from a local file.
-        # If you pass a URL, the OVA will be downloaded on the Proxmox host.
+    ova: Path | None = (
+        None  # otherwise, the VM will be created from this OVA on the local filesystem
     )
     existing_backup_name: str | None = (
         None  # otherwise, the VM will be created from this backup
     )
     # Ubuntu 24.04 is supported because an OVA is publicly available from a reliable source.
-    # Kali does not have such an OVA. There is no other way to upload a VM image to 
+    # Kali does not have such an OVA. There is no other way to upload a VM image to
     # Proxmox 8.3.x. Hence, Kali support here would require Kali to provide an OVA.
     # The same goes for Debian.
     built_in: Literal["ubuntu24.04"] | None = (
@@ -94,13 +93,11 @@ class VmConfig(BaseModel, frozen=True):
 
     # If nics is set, the VM will be connected to these VNets (one interface per VNet).
     # If nics is set as empty tuple (), the VM will not have any NICs.
-    # If nics is left as the default None: 
-    #   If the vm_source_config is existing_backup_name or existing_vm_template_tag, the NICs will 
+    # If nics is left as the default None:
+    #   If the vm_source_config is existing_backup_name or existing_vm_template_tag, the NICs will
     #      be left as configured in the existing VM backup or template.
     #   If the vm_source_config is ova or built_in, it will be connected to the first VNet.
-    nics: Optional[Tuple[
-        VmNicConfig, ...
-    ]] = None
+    nics: Optional[Tuple[VmNicConfig, ...]] = None
     is_sandbox: bool = True  # if True, the VM will show up as a sandbox. It must have the qemu-guest-agent installed
     uefi_boot: bool = False  # if True, the VM will boot in UEFI mode. In theory, this is already specified by OVA, but Proxmox doesn't seem to respect it.
 
