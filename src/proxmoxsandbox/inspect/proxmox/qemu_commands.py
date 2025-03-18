@@ -329,18 +329,19 @@ class QemuCommands(abc.ABC):
         vm_id: int,
     ) -> None:
         async def update_network() -> None:
-            network_update_json: ProxmoxJsonDataType = {
-                "tags": ""
-            }  # remove the tag as that's only for the template TODO - move this
+            network_update_json: ProxmoxJsonDataType = {}
             if vm_config.nics is None:
-                if vm_config.vm_source_config.built_in or vm_config.vm_source_config.ova:
+                if (
+                    vm_config.vm_source_config.built_in
+                    or vm_config.vm_source_config.ova
+                ):
                     await self.remove_existing_nics(vm_id)
                     first_vnet_id = sdn_vnet_aliases[0][0]
                     network_update_json["net0"] = f"virtio,bridge={first_vnet_id}"
                 # for other vm_source_configs, we *do not touch* networking config
                 # - so the user must have set it up correctly!
             else:
-                await self.remove_existing_nics(vm_id)             
+                await self.remove_existing_nics(vm_id)
                 alias_mapping = self._convert_sdn_vnet_aliases(sdn_vnet_aliases)
                 # note: vm_config.nics can be the empty tuple here - this is deliberate:
                 # you will end up with no nics in the VM
@@ -350,11 +351,12 @@ class QemuCommands(abc.ABC):
                         netx += f",macaddr={nic.mac}"
                     network_update_json[f"net{i}"] = netx
 
-            await self.async_proxmox.request(
-                "POST",
-                f"/nodes/{self.node}/qemu/{vm_id}/config",
-                json=network_update_json,
-            )
+            if network_update_json:
+                await self.async_proxmox.request(
+                    "POST",
+                    f"/nodes/{self.node}/qemu/{vm_id}/config",
+                    json=network_update_json,
+                )
 
         await self.task_wrapper.do_action_and_wait_for_tasks(update_network)
 
