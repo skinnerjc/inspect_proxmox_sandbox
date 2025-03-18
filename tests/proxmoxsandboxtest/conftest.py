@@ -9,6 +9,7 @@ from proxmoxsandbox.inspect.proxmox.built_in_vm import BuiltInVM
 from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands, VnetAliases
 from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
+    ProxmoxSandboxEnvironment,
     ProxmoxSandboxEnvironmentConfig,
 )
 
@@ -52,10 +53,30 @@ async def ids_start() -> str:
     return ids_start
 
 
-@pytest.fixture()
+@pytest.fixture
 async def auto_sdn_vnet_aliases(
     ids_start: str, sdn_commands: SdnCommands
 ) -> AsyncGenerator[VnetAliases, None]:
     sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(ids_start, "auto")
     yield vnet_aliases
     await sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id)
+
+
+@pytest.fixture(scope="function")
+async def proxmox_sandbox_environment(
+    sandbox_env_config: ProxmoxSandboxEnvironmentConfig,
+) -> AsyncGenerator[ProxmoxSandboxEnvironment, None]:
+    task_name = "from_conftest"
+    await ProxmoxSandboxEnvironment.task_init(task_name=task_name, config=None)
+    envs_dict = await ProxmoxSandboxEnvironment.sample_init(
+        task_name=task_name,
+        config=sandbox_env_config,
+        metadata={},
+    )
+    yield envs_dict["default"]
+    await ProxmoxSandboxEnvironment.sample_cleanup(
+        task_name=task_name,
+        config=sandbox_env_config,
+        environments=envs_dict,
+        interrupted=False,
+    )
