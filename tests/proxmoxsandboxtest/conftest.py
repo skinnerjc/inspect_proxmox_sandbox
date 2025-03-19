@@ -28,23 +28,30 @@ async def async_proxmox_api(
 
 
 @pytest.fixture
+async def node(
+    sandbox_env_config: ProxmoxSandboxEnvironmentConfig,
+) -> str:
+    return sandbox_env_config.node
+
+
+@pytest.fixture
 async def sandbox_env_config() -> ProxmoxSandboxEnvironmentConfig:
     return ProxmoxSandboxEnvironmentConfig()
 
 
 @pytest.fixture
 async def sdn_commands(async_proxmox_api: AsyncProxmoxAPI) -> SdnCommands:
-    return SdnCommands(async_proxmox_api, node="proxmox")
+    return SdnCommands(async_proxmox_api)
 
 
 @pytest.fixture
-async def qemu_commands(async_proxmox_api: AsyncProxmoxAPI) -> SdnCommands:
-    return QemuCommands(async_proxmox_api, node="proxmox")
+async def qemu_commands(async_proxmox_api: AsyncProxmoxAPI, node: str) -> SdnCommands:
+    return QemuCommands(async_proxmox_api, node=node)
 
 
 @pytest.fixture
-async def built_in_vm(async_proxmox_api: AsyncProxmoxAPI) -> SdnCommands:
-    return BuiltInVM(async_proxmox_api, node="proxmox")
+async def built_in_vm(async_proxmox_api: AsyncProxmoxAPI, node: str) -> SdnCommands:
+    return BuiltInVM(async_proxmox_api, node=node)
 
 
 @pytest.fixture(scope="function")

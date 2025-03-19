@@ -31,9 +31,6 @@ from proxmoxsandbox.inspect.schema import (
     SdnConfigType,
 )
 
-# node name is hardcoded, could make it configurable
-NODE_NAME = "proxmox"
-
 
 @sandboxenv(name="proxmox")
 class ProxmoxSandboxEnvironment(SandboxEnvironment):
@@ -151,7 +148,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             verify_ssl=False,
         )
 
-        infra_commands = InfraCommands(async_proxmox=proxmox, node=NODE_NAME)
+        infra_commands = InfraCommands(async_proxmox=proxmox, node=config.node)
 
         # 8 characters max unfortunately; we save two at the end to distinguish vnet/SDN objects
         task_name_start = re.sub("[^a-zA-Z0-9]", "x", task_name[:3].lower())
@@ -159,7 +156,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         # TODO: could check here for collisions
 
         async with concurrency("proxmox", 1):
-            built_in_vm = BuiltInVM(async_proxmox=proxmox, node=NODE_NAME)
+            built_in_vm = BuiltInVM(async_proxmox=proxmox, node=config.node)
             for vm_config in config.vms_config:
                 if vm_config.vm_source_config.built_in is not None:
                     await built_in_vm.ensure_exists(vm_config.vm_source_config)

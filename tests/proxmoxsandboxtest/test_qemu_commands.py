@@ -207,7 +207,7 @@ async def test_from_ova_local(qemu_commands: QemuCommands):
         built_in_vm_ids={},
     )
 
-    await qemu_commands.ping_qemu_agent("proxmox", new_vm_id)
+    await qemu_commands.ping_qemu_agent(new_vm_id)
 
     await qemu_commands.destroy_vm(new_vm_id)
 
@@ -230,7 +230,7 @@ async def test_from_ova_uefi_sandbox(qemu_commands: QemuCommands):
         built_in_vm_ids={},
     )
 
-    await qemu_commands.ping_qemu_agent("proxmox", new_vm_id)
+    await qemu_commands.ping_qemu_agent(new_vm_id)
 
     await qemu_commands.destroy_vm(new_vm_id)
 
@@ -258,7 +258,7 @@ async def test_uefi(
     assert new_vm["agent"] == "enabled=1"
     assert new_vm["bios"] == "ovmf"
 
-    await qemu_commands.ping_qemu_agent("proxmox", new_vm_id)
+    await qemu_commands.ping_qemu_agent(new_vm_id)
 
     await qemu_commands.destroy_vm(new_vm_id)
 
@@ -310,7 +310,7 @@ async def test_restore_from_backup(
         built_in_vm_ids={},
     )
 
-    await qemu_commands.ping_qemu_agent("proxmox", new_vm_id)
+    await qemu_commands.ping_qemu_agent(new_vm_id)
 
     new_vm = await qemu_commands.read_vm(new_vm_id)
     assert "net0" in new_vm

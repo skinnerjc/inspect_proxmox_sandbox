@@ -44,7 +44,7 @@ class BuiltInVM(abc.ABC):
         self.async_proxmox = async_proxmox
         self.task_wrapper = TaskWrapper(async_proxmox)
         self.qemu_commands = QemuCommands(async_proxmox, node)
-        self.sdn_commands = SdnCommands(async_proxmox, node)
+        self.sdn_commands = SdnCommands(async_proxmox)
         self.storage = "local"
         self.storage_commands = StorageCommands(async_proxmox, node, self.storage)
         self.node = node

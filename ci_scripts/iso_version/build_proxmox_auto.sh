@@ -158,5 +158,6 @@ echo "PROXMOX_PORT=$AISI_PROXMOX_EXPOSED_PORT"
 echo "PROXMOX_USER=root"
 echo "PROXMOX_REALM=pam"
 echo "PROXMOX_PASSWORD=$root_password"
+echo "PROXMOX_NODE=proxmox"
 EOFVEND
 chmod +x ./vend.sh

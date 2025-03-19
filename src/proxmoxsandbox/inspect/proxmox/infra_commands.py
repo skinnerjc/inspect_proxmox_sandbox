@@ -28,7 +28,7 @@ class InfraCommands(abc.ABC):
     def __init__(self, async_proxmox: AsyncProxmoxAPI, node: str):
         self.async_proxmox = async_proxmox
         self.task_wrapper = TaskWrapper(async_proxmox)
-        self.sdn_commands = SdnCommands(async_proxmox, node)
+        self.sdn_commands = SdnCommands(async_proxmox)
         self.qemu_commands = QemuCommands(async_proxmox, node)
         self.node = node
 

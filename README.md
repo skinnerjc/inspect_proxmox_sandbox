@@ -32,6 +32,7 @@ PROXMOX_PORT=[port]
 PROXMOX_USER=[user, usually 'root']
 PROXMOX_REALM=pam
 PROXMOX_PASSWORD=[password]
+PROXMOX_NODE=[node name, usually 'proxmox']
 ```
 
 ## Configuring

@@ -112,6 +112,7 @@ class ProxmoxSandboxEnvironmentConfig(BaseModel, frozen=True):
     user: str = Field(default_factory=lambda: get_env("PROXMOX_USER"))
     user_realm: str = Field(default_factory=lambda: get_env("PROXMOX_REALM"))
     password: str = Field(default_factory=lambda: get_env("PROXMOX_PASSWORD"))
+    node: str = Field(default_factory=lambda: get_env("PROXMOX_NODE"))
 
     # If set to "auto" you will get a simple SDN with a single subnet. The IP addresses
     # will not be predictable as it depends on what subnets already exist.

@@ -19,8 +19,8 @@ from proxmoxsandbox.inspect.schema import (
     VnetConfig,
 )
 
- # a List tuples of [vnet ID, vnet alias], for a particular sdn_zone_id. 
- # The alias may be None for a given ID.
+# a List tuples of [vnet ID, vnet alias], for a particular sdn_zone_id.
+# The alias may be None for a given ID.
 VnetAliases: TypeAlias = List[Tuple[str, str | None]]
 
 
@@ -31,12 +31,10 @@ class SdnCommands(abc.ABC):
 
     async_proxmox: AsyncProxmoxAPI
     task_wrapper: TaskWrapper
-    node: str
 
-    def __init__(self, async_proxmox: AsyncProxmoxAPI, node: str):
+    def __init__(self, async_proxmox: AsyncProxmoxAPI):
         self.async_proxmox = async_proxmox
         self.task_wrapper = TaskWrapper(async_proxmox)
-        self.node = node
 
     def find_existing_cidr_overlaps(
         self, list1: List[str], list2: List[str]
