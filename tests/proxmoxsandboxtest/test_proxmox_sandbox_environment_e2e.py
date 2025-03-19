@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Dict
 
-from inspect_ai.util import SandboxEnvironment
+from inspect_ai.util import SandboxConnection, SandboxEnvironment
 
 from .proxmox_sandbox_utils import setup_sandbox
 
@@ -202,3 +202,10 @@ async def test_ova() -> None:
             environments=envs_dict,
             interrupted=False,
         )
+
+
+async def test_connect(proxmox_sandbox_environment: ProxmoxSandboxEnvironment) -> None:
+        connection: SandboxConnection = await proxmox_sandbox_environment.connection()
+        # we caxn't really do much more than this assertion; sandbox.connection needs to be tested manually
+        assert "open 'http" in connection.command
+

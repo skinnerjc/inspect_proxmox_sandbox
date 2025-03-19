@@ -1,5 +1,5 @@
 from logging import getLogger
-from typing import Dict, Optional, Union, List
+from typing import Dict, List, Optional, Union
 
 import httpx
 from inspect_ai.util import (
@@ -7,7 +7,6 @@ from inspect_ai.util import (
     trace_action,
 )
 from pydantic_core import from_json
-
 
 ProxmoxJsonDataType = Dict[str, Union[str, List[str], int, bool, None]]
 
@@ -18,26 +17,29 @@ class AsyncProxmoxAPI:
     TRACE_NAME = "async_proxmox"
 
     base_url: str
+    api_base_url: str
     username: str
     password: str
     verify_ssl: bool
     ticket: Optional[str] = None
     csrf_token: Optional[str] = None
 
+    # note: host *includes* :port
     def __init__(self, host: str, user: str, password: str, verify_ssl: bool = True):
-        self.base_url = f"https://{host}/api2/json"
+        self.base_url = f"https://{host}"
+        self.api_base_url = f"{self.base_url}/api2/json"
         self.username = user
         self.password = password
         self.verify_ssl = verify_ssl
 
     def __hash__(self):
-        return hash((self.base_url, self.username, self.password, self.verify_ssl))
+        return hash((self.api_base_url, self.username, self.password, self.verify_ssl))
 
     async def _login(self, client: httpx.AsyncClient):
         """Get new authentication ticket and CSRF token."""
         with trace_action(self.logger, self.TRACE_NAME, "login"):
             response = await client.post(
-                f"{self.base_url}/access/ticket",
+                f"{self.api_base_url}/access/ticket",
                 data={"username": self.username, "password": self.password},
             )
             response.raise_for_status()
@@ -71,7 +73,11 @@ class AsyncProxmoxAPI:
             headers = self._prepare_headers(method, content_type)
 
             response = await client.request(
-                method, f"{self.base_url}{path}", headers=headers, json=json, **kwargs
+                method,
+                f"{self.api_base_url}{path}",
+                headers=headers,
+                json=json,
+                **kwargs,
             )
 
             # If we get a 401, our ticket might have expired (2 hour lifetime)
@@ -81,7 +87,7 @@ class AsyncProxmoxAPI:
                 headers = self._prepare_headers(method, content_type)
 
                 response = await client.request(
-                    method, f"{self.base_url}{path}", headers=headers, **kwargs
+                    method, f"{self.api_base_url}{path}", headers=headers, **kwargs
                 )
 
             if response.is_error and raise_errors:
@@ -143,7 +149,7 @@ class AsyncProxmoxAPI:
 
             async with client.stream(
                 "GET",
-                f"{self.base_url}{path}",
+                f"{self.api_base_url}{path}",
                 headers={
                     "Cookie": f"PVEAuthCookie={self.ticket}",
                 },

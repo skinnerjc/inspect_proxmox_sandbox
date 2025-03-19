@@ -433,3 +433,6 @@ class QemuCommands(abc.ABC):
         )
 
         return new_backup
+
+    async def connection_url(self, vm_id: int) -> str:
+        return f"{self.async_proxmox.base_url}/?console=kvm&novnc=1&vmid={vm_id}&node={self.node}"

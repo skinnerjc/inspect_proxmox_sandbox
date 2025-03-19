@@ -8,7 +8,6 @@ from pathlib import Path
 from random import randint
 from typing import Any, Dict, Generator, List, Tuple, Union
 
-from pydantic import BaseModel
 import tenacity
 from inspect_ai.util import (
     ExecResult,
@@ -21,11 +20,13 @@ from inspect_ai.util import (
     sandboxenv,
     trace_action,
 )
+from pydantic import BaseModel
 
 from proxmoxsandbox.inspect.proxmox.agent_commands import AgentCommands
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox.inspect.proxmox.built_in_vm import BuiltInVM
 from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
+from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
 from proxmoxsandbox.inspect.schema import (
     ProxmoxSandboxEnvironmentConfig,
@@ -41,6 +42,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
 
     infra_commands: InfraCommands
     agent_commands: AgentCommands
+    qemu_commands: QemuCommands
     task_wrapper: TaskWrapper
     built_in_vm: BuiltInVM
     sdn_config: SdnConfigType
@@ -59,6 +61,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
     ):
         self.infra_commands = InfraCommands(async_proxmox=proxmox, node=node)
         self.agent_commands = AgentCommands(async_proxmox=proxmox, node=node)
+        self.qemu_commands = QemuCommands(async_proxmox=proxmox, node=node)
         self.built_in_vm = BuiltInVM(async_proxmox=proxmox, node=node)
         self.task_wrapper = TaskWrapper(async_proxmox=proxmox)
         self.sdn_config = sdn_config
@@ -150,7 +153,9 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             verify_ssl=False,
         )
 
-        infra_commands = InfraCommands(async_proxmox=async_proxmox_api, node=config.node)
+        infra_commands = InfraCommands(
+            async_proxmox=async_proxmox_api, node=config.node
+        )
 
         # 8 characters max unfortunately; we save two at the end to distinguish vnet/SDN objects
         task_name_start = re.sub("[^a-zA-Z0-9]", "x", task_name[:3].lower())
@@ -505,7 +510,12 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
            NotImplementedError: For sandboxes that don't provide connections
            ConnectionError: If sandbox is not currently running.
         """
-        raise NotImplementedError
+        if self.vm_id is None:
+            raise ConnectionError("Sandbox is not running")
+        return SandboxConnection(
+            type="proxmox",
+            command=f"open '{await self.qemu_commands.connection_url(self.vm_id)}'",
+        )
 
     async def create_snapshot(self, snapshot_name: str) -> None:
         async def snapshotter() -> None:
