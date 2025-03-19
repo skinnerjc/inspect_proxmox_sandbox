@@ -6,8 +6,9 @@ import time
 from logging import getLogger
 from pathlib import Path
 from random import randint
-from typing import Dict, Generator, List, Tuple, Union
+from typing import Any, Dict, Generator, List, Tuple, Union
 
+from pydantic import BaseModel
 import tenacity
 from inspect_ai.util import (
     ExecResult,
@@ -245,6 +246,10 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
     @classmethod
     async def cli_cleanup(cls, id: str | None) -> None:
         return None
+
+    @classmethod
+    def config_deserialize(cls, config: dict[str, Any]) -> BaseModel:
+        return ProxmoxSandboxEnvironmentConfig(**config)
 
     async def exec(
         self,
