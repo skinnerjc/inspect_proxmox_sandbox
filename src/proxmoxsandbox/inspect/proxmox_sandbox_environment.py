@@ -216,7 +216,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         cls,
         task_name: str,
         config: SandboxEnvironmentConfigType | None,
-        environments: dict[str, SandboxEnvironment],
+        environments: Dict[str, SandboxEnvironment],
         interrupted: bool,
     ) -> None:
         any_vm_sandbox_environment: ProxmoxSandboxEnvironment | None = None

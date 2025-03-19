@@ -195,7 +195,6 @@ including the running processes. See [snapshots.py](./src/proxmoxsandbox/experim
 
 ## Tech debt
 
-- Types, mypy, ruff, etc.
 - Does not work with Inspect's post-hoc sandbox cleanup feature
 
 ## Developing
@@ -213,3 +212,9 @@ source .bin/venv/activate
 ```
 
 or prefix your pytest (etc.) commands with `uv run ...`
+
+Pre-commit, please check:
+
+```bash
+uv run mypy && uv run ruff check
+```

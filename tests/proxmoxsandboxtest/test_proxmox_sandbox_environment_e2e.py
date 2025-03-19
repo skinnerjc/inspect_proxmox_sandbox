@@ -1,8 +1,9 @@
 from pathlib import Path
+from typing import Dict
 
-from proxmoxsandboxtest.proxmox_sandbox_utils import (
-    setup_sandbox,
-)
+from inspect_ai.util import SandboxEnvironment
+
+from .proxmox_sandbox_utils import setup_sandbox
 
 from proxmoxsandbox.inspect.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
 from proxmoxsandbox.inspect.schema import (
@@ -20,7 +21,7 @@ CURRENT_DIR = Path(__file__).parent
 
 
 async def test_built_in() -> None:
-    envs_dict = {}
+    envs_dict: Dict[str, SandboxEnvironment] = {}
     sandbox_env_config = ProxmoxSandboxEnvironmentConfig(
         sdn_config=SdnConfig(
             vnet_configs=(
@@ -108,7 +109,9 @@ async def test_built_in() -> None:
 
         # check internet connectivity excluding DNS
         curl_nodns_result = await sandbox.exec(["curl", "--fail", "http://1.1.1.1"])
-        assert curl_nodns_result.success, f"Failed to run curl without dns: {curl_nodns_result=}"
+        assert curl_nodns_result.success, (
+            f"Failed to run curl without dns: {curl_nodns_result=}"
+        )
 
         # check internet connectivity with DNS
         curl_result = await sandbox.exec(["curl", "--fail", "http://amazon.com"])
@@ -170,7 +173,7 @@ async def test_multiple_sandboxes_isolated(sandbox_env_config) -> None:
 
 
 async def test_ova() -> None:
-    envs_dict = {}
+    envs_dict: Dict[str, SandboxEnvironment] = {}
     sandbox_env_config = ProxmoxSandboxEnvironmentConfig(
         vms_config=(
             VmConfig(
