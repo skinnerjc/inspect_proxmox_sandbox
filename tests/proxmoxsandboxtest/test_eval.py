@@ -64,3 +64,9 @@ def test_inspect_eval() -> None:
     )
 
     assert len(eval_logs) == 1
+    assert eval_logs[0]
+    assert eval_logs[0].error is None
+    assert eval_logs[0].samples
+    sample = eval_logs[0].samples[0]
+    tool_calls = [x for x in sample.messages if x.role == "tool"]
+    assert "ubuntu" in tool_calls[0].text
