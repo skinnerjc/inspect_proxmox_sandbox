@@ -141,7 +141,7 @@ async def test_multiple_sandboxes_isolated(sandbox_env_config) -> None:
                 [
                     "bash",
                     "-c",
-                    'ip a | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v "127\.0" ',
+                    r'ip a | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v "127\.0"',
                 ]
             )
         ).stdout.splitlines()

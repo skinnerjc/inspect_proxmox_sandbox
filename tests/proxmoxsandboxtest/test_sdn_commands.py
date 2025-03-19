@@ -149,6 +149,7 @@ async def test_create_sdn_auto(ids_start: str, sdn_commands: SdnCommands) -> Non
         proxmox_ids_start=ids_start, sdn_config="auto"
     )
 
+    assert sdn_zone_id is not None
     assert len(vnet_aliases) == 1
 
     await sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id)

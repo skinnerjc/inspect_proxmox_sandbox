@@ -45,12 +45,12 @@ async def sdn_commands(async_proxmox_api: AsyncProxmoxAPI) -> SdnCommands:
 
 
 @pytest.fixture
-async def qemu_commands(async_proxmox_api: AsyncProxmoxAPI, node: str) -> SdnCommands:
+async def qemu_commands(async_proxmox_api: AsyncProxmoxAPI, node: str) -> QemuCommands:
     return QemuCommands(async_proxmox_api, node=node)
 
 
 @pytest.fixture
-async def built_in_vm(async_proxmox_api: AsyncProxmoxAPI, node: str) -> SdnCommands:
+async def built_in_vm(async_proxmox_api: AsyncProxmoxAPI, node: str) -> BuiltInVM:
     return BuiltInVM(async_proxmox_api, node=node)
 
 
@@ -65,6 +65,7 @@ async def auto_sdn_vnet_aliases(
     ids_start: str, sdn_commands: SdnCommands
 ) -> AsyncGenerator[VnetAliases, None]:
     sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(ids_start, "auto")
+    assert sdn_zone_id is not None
     yield vnet_aliases
     await sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id)
 
@@ -80,7 +81,9 @@ async def proxmox_sandbox_environment(
         config=sandbox_env_config,
         metadata={},
     )
-    yield envs_dict["default"]
+    default_env = envs_dict["default"]
+    assert isinstance(default_env, ProxmoxSandboxEnvironment)
+    yield default_env
     await ProxmoxSandboxEnvironment.sample_cleanup(
         task_name=task_name,
         config=sandbox_env_config,

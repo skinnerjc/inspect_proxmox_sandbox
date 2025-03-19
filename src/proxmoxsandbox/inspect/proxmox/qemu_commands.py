@@ -2,7 +2,7 @@ import abc
 import tarfile
 from logging import getLogger
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict
 
 import tenacity
 from inspect_ai.util import trace_action
@@ -406,7 +406,7 @@ class QemuCommands(abc.ABC):
             "POST", f"/nodes/{self.node}/qemu/{vm_id}/agent/ping"
         )
 
-    async def create_backup(self, vm_id: int) -> None:
+    async def create_backup(self, vm_id: int) -> Dict[str, Any]:
         existing_backups = await self.async_proxmox.request(
             "GET", f"/nodes/{self.node}/storage/local/content?content=backup"
         )

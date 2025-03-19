@@ -8,7 +8,10 @@ from inspect_ai.util import (
     trace_action,
 )
 
-from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.async_proxmox import (
+    AsyncProxmoxAPI,
+    ProxmoxJsonDataType,
+)
 
 
 class AgentCommands:
@@ -52,7 +55,7 @@ class AgentCommands:
             self.logger, self.TRACE_NAME, f"exec_command {vm_id=} {command=}"
         ):
             path = f"/nodes/{self.node}/qemu/{vm_id}/agent/exec"
-            data = {"command": command}
+            data: ProxmoxJsonDataType = {"command": command}
             return await self.async_proxmox.request("POST", path, json=data)
 
     async def read_file_or_blank(
@@ -89,7 +92,9 @@ class AgentCommands:
             if max_size == SandboxEnvironmentLimits.MAX_READ_FILE_SIZE
             else SandboxEnvironmentLimits.MAX_EXEC_OUTPUT_SIZE_STR
         )
-        return await self.async_proxmox.read_file(self.node, vm_id, filepath, max_size, max_size_str)
+        return await self.async_proxmox.read_file(
+            self.node, vm_id, filepath, max_size, max_size_str
+        )
 
     async def create_snapshot(self, vm_id: int, snapshot_name: str) -> None:
         path = f"/nodes/{self.node}/qemu/{vm_id}/snapshot"

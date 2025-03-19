@@ -50,14 +50,15 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
     def __init__(
         self,
         proxmox: AsyncProxmoxAPI,
+        node: str,
         sdn_config: SdnConfigType,
         vm_id: int,
         all_vm_ids: Tuple[int, ...],
         sdn_zone_id: str | None,
     ):
-        self.infra_commands = InfraCommands(async_proxmox=proxmox, node=NODE_NAME)
-        self.agent_commands = AgentCommands(async_proxmox=proxmox, node=NODE_NAME)
-        self.built_in_vm = BuiltInVM(async_proxmox=proxmox, node=NODE_NAME)
+        self.infra_commands = InfraCommands(async_proxmox=proxmox, node=node)
+        self.agent_commands = AgentCommands(async_proxmox=proxmox, node=node)
+        self.built_in_vm = BuiltInVM(async_proxmox=proxmox, node=node)
         self.task_wrapper = TaskWrapper(async_proxmox=proxmox)
         self.sdn_config = sdn_config
         self.vm_id = vm_id
@@ -141,14 +142,14 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         if not isinstance(config, ProxmoxSandboxEnvironmentConfig):
             raise ValueError("config must be a ProxmoxSandboxEnvironmentConfig")
 
-        proxmox = AsyncProxmoxAPI(
+        async_proxmox_api = AsyncProxmoxAPI(
             host=f"{config.host}:{config.port}",
             user=f"{config.user}@{config.user_realm}",
             password=config.password,
             verify_ssl=False,
         )
 
-        infra_commands = InfraCommands(async_proxmox=proxmox, node=config.node)
+        infra_commands = InfraCommands(async_proxmox=async_proxmox_api, node=config.node)
 
         # 8 characters max unfortunately; we save two at the end to distinguish vnet/SDN objects
         task_name_start = re.sub("[^a-zA-Z0-9]", "x", task_name[:3].lower())
@@ -156,7 +157,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         # TODO: could check here for collisions
 
         async with concurrency("proxmox", 1):
-            built_in_vm = BuiltInVM(async_proxmox=proxmox, node=config.node)
+            built_in_vm = BuiltInVM(async_proxmox=async_proxmox_api, node=config.node)
             for vm_config in config.vms_config:
                 if vm_config.vm_source_config.built_in is not None:
                     await built_in_vm.ensure_exists(vm_config.vm_source_config)
@@ -180,7 +181,8 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
 
         for idx, vm_config_and_id in enumerate(vm_configs_with_ids):
             vm_sandbox_environment = ProxmoxSandboxEnvironment(
-                proxmox=proxmox,
+                proxmox=async_proxmox_api,
+                node=config.node,
                 sdn_config=config.sdn_config,
                 vm_id=vm_config_and_id[0],
                 all_vm_ids=vm_ids,

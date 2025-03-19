@@ -71,7 +71,7 @@ async def test_none_nic_from_template_tag(
     assert "net0" in new_vm
     assert BuiltInVM.STATIC_SDN_START in new_vm["net0"]
 
-    qemu_commands.destroy_vm(new_vm_id)
+    await qemu_commands.destroy_vm(new_vm_id)
 
 
 async def test_empty_nic_from_template_tag(
@@ -145,6 +145,8 @@ async def test_multiple_nic(
             use_pve_ipam_dnsnmasq=False,
         ),
     )
+
+    assert sdn_zone_id is not None
 
     new_vm_id = await qemu_commands.create_and_start_vm(
         sdn_vnet_aliases=vnet_aliases,
@@ -295,6 +297,7 @@ async def test_restore_from_backup(
             use_pve_ipam_dnsnmasq=False,
         ),
     )
+    assert sdn_zone_id is not None
 
     new_vm_id = await qemu_commands.create_and_start_vm(
         sdn_vnet_aliases=vnet_aliases,
