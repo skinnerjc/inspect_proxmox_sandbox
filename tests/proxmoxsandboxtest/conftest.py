@@ -56,6 +56,8 @@ async def built_in_vm(async_proxmox_api: AsyncProxmoxAPI, node: str) -> BuiltInV
 
 @pytest.fixture(scope="function")
 async def ids_start() -> str:
+    # this could definitely be improved to go and check
+    # proxmox and find a non-conflicting ID
     ids_start = f"cts{random.randint(100, 999)}"
     return ids_start
 

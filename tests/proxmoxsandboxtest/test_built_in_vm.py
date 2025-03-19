@@ -1,6 +1,5 @@
 from proxmoxsandbox.inspect.proxmox.built_in_vm import BuiltInVM
 from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands
-from proxmoxsandbox.inspect.schema import VmSourceConfig
 
 
 async def test_ubuntu(qemu_commands: QemuCommands, built_in_vm: BuiltInVM) -> None:
@@ -12,9 +11,7 @@ async def test_ubuntu(qemu_commands: QemuCommands, built_in_vm: BuiltInVM) -> No
 
     existing_vms = await qemu_commands.list_vms()
 
-    await built_in_vm.ensure_exists(
-        vm_source_config=VmSourceConfig(built_in="ubuntu24.04")
-    )
+    await built_in_vm.ensure_exists("ubuntu24.04")
 
     all_vms = await qemu_commands.list_vms()
 

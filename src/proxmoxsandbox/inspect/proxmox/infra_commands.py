@@ -1,10 +1,11 @@
 import abc
 from logging import getLogger
-from typing import Dict, Tuple
+from typing import Tuple
 
 from inspect_ai.util import trace_action
 
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox.inspect.proxmox.built_in_vm import BuiltInVM
 from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands
 from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
@@ -23,6 +24,7 @@ class InfraCommands(abc.ABC):
     task_wrapper: TaskWrapper
     sdn_commands: SdnCommands
     qemu_commands: QemuCommands
+    built_in_vm: BuiltInVM
     node: str
 
     def __init__(self, async_proxmox: AsyncProxmoxAPI, node: str):
@@ -30,6 +32,7 @@ class InfraCommands(abc.ABC):
         self.task_wrapper = TaskWrapper(async_proxmox)
         self.sdn_commands = SdnCommands(async_proxmox)
         self.qemu_commands = QemuCommands(async_proxmox, node)
+        self.built_in_vm = BuiltInVM(async_proxmox, node)
         self.node = node
 
     async def create_sdn_and_vms(
@@ -37,12 +40,13 @@ class InfraCommands(abc.ABC):
         proxmox_ids_start: str,
         sdn_config: SdnConfigType,
         vms_config: Tuple[VmConfig, ...],
-        known_builtins: Dict[str, int],
     ):
         vm_configs_with_ids = []
         sdn_zone_id, vnet_aliases = await self.sdn_commands.create_sdn(
             proxmox_ids_start, sdn_config
         )
+
+        known_builtins = await self.built_in_vm.known_builtins()
 
         for vm_config in vms_config:
             with trace_action(self.logger, self.TRACE_NAME, f"create VM {vm_config=}"):

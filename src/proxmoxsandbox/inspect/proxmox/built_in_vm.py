@@ -198,11 +198,12 @@ runcmd:
 
         return existing_content
 
-    async def ensure_exists(self, vm_source_config: VmSourceConfig) -> None:
-        if vm_source_config.built_in is None:
-            raise ValueError("built_in must be set")
+    async def ensure_exists(self, built_in_name: str) -> None:
+        if built_in_name is None:
+            raise ValueError("built_in_name must be set")
 
-        if vm_source_config.built_in in await self.known_builtins():
+        # we could cache the known_builtins here
+        if built_in_name in await self.known_builtins():
             return
 
         next_available_vm_id = await self.qemu_commands.find_next_available_vm_id()
@@ -210,17 +211,17 @@ runcmd:
         # TODO: allow storage to be configurable
         storage = "local"
 
-        if vm_source_config.built_in == "ubuntu24.04":
+        if built_in_name == "ubuntu24.04":
             await self.ensure_exists_from_ova(
                 storage=storage,
                 next_available_vm_id=next_available_vm_id,
-                built_in=vm_source_config.built_in,
+                built_in=built_in_name,
                 ova_name=self.UBUNTU_24_04_OVA_FILENAME,
                 ova_source_url="https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.ova",
                 ova_vmdk_filename="ubuntu-noble-24.04-cloudimg.vmdk",
             )
         else:
-            raise ValueError(f"Unknown built-in {vm_source_config.built_in}")
+            raise ValueError(f"Unknown built-in {built_in_name}")
 
     async def ensure_exists_from_ova(
         self,

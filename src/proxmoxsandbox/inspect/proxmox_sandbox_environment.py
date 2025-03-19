@@ -134,6 +134,17 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
     async def task_init(
         cls, task_name: str, config: SandboxEnvironmentConfigType | None
     ) -> None:
+        if config is not None:
+            if not isinstance(config, ProxmoxSandboxEnvironmentConfig):
+                raise ValueError("config must be a ProxmoxSandboxEnvironmentConfig")
+            async_proxmox_api = cls.create_async_proxmox_api(config)
+            built_in_vm = BuiltInVM(async_proxmox=async_proxmox_api, node=config.node)
+            built_in_names = set()
+            for vm_config in config.vms_config:
+                if vm_config.vm_source_config.built_in is not None:
+                    built_in_names.add(vm_config.vm_source_config.built_in)
+            for built_in_name in built_in_names:
+                await built_in_vm.ensure_exists(built_in_name)
         return None
 
     @classmethod
@@ -143,15 +154,12 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         config: SandboxEnvironmentConfigType | None,
         metadata: dict[str, str],
     ) -> dict[str, SandboxEnvironment]:
+        if config is None:
+            config = ProxmoxSandboxEnvironmentConfig()
         if not isinstance(config, ProxmoxSandboxEnvironmentConfig):
             raise ValueError("config must be a ProxmoxSandboxEnvironmentConfig")
 
-        async_proxmox_api = AsyncProxmoxAPI(
-            host=f"{config.host}:{config.port}",
-            user=f"{config.user}@{config.user_realm}",
-            password=config.password,
-            verify_ssl=False,
-        )
+        async_proxmox_api = cls.create_async_proxmox_api(config)
 
         infra_commands = InfraCommands(
             async_proxmox=async_proxmox_api, node=config.node
@@ -163,18 +171,10 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         # TODO: could check here for collisions
 
         async with concurrency("proxmox", 1):
-            built_in_vm = BuiltInVM(async_proxmox=async_proxmox_api, node=config.node)
-            for vm_config in config.vms_config:
-                if vm_config.vm_source_config.built_in is not None:
-                    await built_in_vm.ensure_exists(vm_config.vm_source_config)
-
-            known_builtins = await built_in_vm.known_builtins()
-
             vm_configs_with_ids, sdn_zone_id = await infra_commands.create_sdn_and_vms(
                 proxmox_ids_start,
                 sdn_config=config.sdn_config,
                 vms_config=config.vms_config,
-                known_builtins=known_builtins,
             )
 
         sandboxes: Dict[str, SandboxEnvironment] = {}
@@ -216,6 +216,17 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             return sandboxes
 
         return reorder_default_first(sandboxes)
+
+    @classmethod
+    def create_async_proxmox_api(
+        cls, config: ProxmoxSandboxEnvironmentConfig
+    ) -> AsyncProxmoxAPI:
+        return AsyncProxmoxAPI(
+            host=f"{config.host}:{config.port}",
+            user=f"{config.user}@{config.user_realm}",
+            password=config.password,
+            verify_ssl=False,
+        )
 
     @classmethod
     async def sample_cleanup(

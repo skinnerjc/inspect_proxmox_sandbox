@@ -23,7 +23,7 @@ async def test_simple_vm_non_sandbox(
 ):
     built_in_ubuntu = VmSourceConfig(built_in="ubuntu24.04")
 
-    await built_in_vm.ensure_exists(built_in_ubuntu)
+    await built_in_vm.ensure_exists("ubuntu24.04")
 
     new_vm_id = await qemu_commands.create_and_start_vm(
         sdn_vnet_aliases=auto_sdn_vnet_aliases,
@@ -52,9 +52,7 @@ async def test_none_nic_from_template_tag(
     auto_sdn_vnet_aliases: VnetAliases,
     built_in_vm: BuiltInVM,
 ):
-    built_in_ubuntu = VmSourceConfig(built_in="ubuntu24.04")
-
-    await built_in_vm.ensure_exists(built_in_ubuntu)
+    await built_in_vm.ensure_exists("ubuntu24.04")
 
     new_vm_id = await qemu_commands.create_and_start_vm(
         sdn_vnet_aliases=auto_sdn_vnet_aliases,
@@ -79,9 +77,7 @@ async def test_empty_nic_from_template_tag(
     auto_sdn_vnet_aliases: VnetAliases,
     built_in_vm: BuiltInVM,
 ):
-    built_in_ubuntu = VmSourceConfig(built_in="ubuntu24.04")
-
-    await built_in_vm.ensure_exists(built_in_ubuntu)
+    await built_in_vm.ensure_exists("ubuntu24.04")
 
     new_vm_id = await qemu_commands.create_and_start_vm(
         sdn_vnet_aliases=auto_sdn_vnet_aliases,
@@ -107,7 +103,7 @@ async def test_none_nic_from_built_in(
 ):
     built_in_ubuntu = VmSourceConfig(built_in="ubuntu24.04")
 
-    await built_in_vm.ensure_exists(built_in_ubuntu)
+    await built_in_vm.ensure_exists("ubuntu24.04")
 
     new_vm_id = await qemu_commands.create_and_start_vm(
         sdn_vnet_aliases=auto_sdn_vnet_aliases,
@@ -133,7 +129,7 @@ async def test_multiple_nic(
 ):
     built_in_ubuntu = VmSourceConfig(built_in="ubuntu24.04")
 
-    await built_in_vm.ensure_exists(built_in_ubuntu)
+    await built_in_vm.ensure_exists("ubuntu24.04")
 
     sdn_zone_id, vnet_aliases = await sdn_commands.create_sdn(
         ids_start,
@@ -176,7 +172,7 @@ async def test_empty_nic_from_built_in(
 ):
     built_in_ubuntu = VmSourceConfig(built_in="ubuntu24.04")
 
-    await built_in_vm.ensure_exists(built_in_ubuntu)
+    await built_in_vm.ensure_exists("ubuntu24.04")
 
     new_vm_id = await qemu_commands.create_and_start_vm(
         sdn_vnet_aliases=auto_sdn_vnet_aliases,
@@ -244,7 +240,7 @@ async def test_uefi(
 ):
     built_in_ubuntu = VmSourceConfig(built_in="ubuntu24.04")
 
-    await built_in_vm.ensure_exists(built_in_ubuntu)
+    await built_in_vm.ensure_exists("ubuntu24.04")
 
     new_vm_id = await qemu_commands.create_and_start_vm(
         sdn_vnet_aliases=auto_sdn_vnet_aliases,
@@ -271,7 +267,7 @@ async def test_restore_from_backup(
     sdn_commands: SdnCommands,
     ids_start: str,
 ) -> None:
-    await built_in_vm.ensure_exists(VmSourceConfig(built_in="ubuntu24.04"))
+    await built_in_vm.ensure_exists("ubuntu24.04")
 
     vm_id_for_backup_source = await qemu_commands.create_and_start_vm(
         sdn_vnet_aliases=[],

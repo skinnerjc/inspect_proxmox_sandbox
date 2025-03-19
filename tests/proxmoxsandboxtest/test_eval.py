@@ -6,12 +6,6 @@ from inspect_ai.model import ModelOutput, get_model
 from inspect_ai.scorer import includes
 from inspect_ai.solver import basic_agent
 from inspect_ai.tool import bash
-from inspect_ai.util import SandboxEnvironmentSpec
-
-from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
-    ProxmoxSandboxEnvironmentConfig,
-)
-
 
 CURRENT_DIR = Path(__file__).parent
 
@@ -34,10 +28,7 @@ sample text
             ),
         ],
         scorer=includes(),
-        sandbox=SandboxEnvironmentSpec(
-            type="proxmox",
-            config=ProxmoxSandboxEnvironmentConfig(),
-        ),
+        sandbox="proxmox"
     )
 
 
