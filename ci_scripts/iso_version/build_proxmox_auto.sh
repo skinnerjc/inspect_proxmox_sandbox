@@ -56,9 +56,9 @@ pvesh set /storage/local -content iso,vztmpl,backup,snippets,images,rootdir,impo
 echo 'deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription' > /etc/apt/sources.list.d/pve-no-subscription.list
 rm -f /etc/apt/sources.list.d/{pve-enterprise,ceph}.list
 
-# install dnsmasq for SDN
+# install dnsmasq for SDN, and xterm so we can use the resize command in terminal windows
 apt update
-apt install -y dnsmasq
+apt install -y dnsmasq xterm
 systemctl disable --now dnsmasq
 
 # shut down to signal to virt-install that installation is complete
@@ -149,6 +149,7 @@ sudo virt-sysprep -d "$VM_NEW" \
 
 EDITOR="sed -i 's/hostfwd=tcp::[0-9]\+-:8006/hostfwd=tcp::$AISI_PROXMOX_EXPOSED_PORT-:8006/'" virsh edit "$VM_NEW"
 
+virsh autostart "$VM_NEW"
 virsh start "$VM_NEW"
 
 echo "Created VM $VM_NEW on port $AISI_PROXMOX_EXPOSED_PORT with root password $root_password"
