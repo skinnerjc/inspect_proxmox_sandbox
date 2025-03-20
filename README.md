@@ -54,6 +54,7 @@ sandbox=SandboxEnvironmentSpec(
         user="[username e.g. root, the proxmox default]",
         password="[password]",
         user_realm="[realm e.g. pam, the proxmox default]",
+        node="[node name, usually 'proxmox']",
         # End config from environment
 
         vms_config=(
@@ -63,8 +64,8 @@ sandbox=SandboxEnvironmentSpec(
                     built_in="ubuntu24.04" # currently supported: "ubuntu24.04"; see schema.py
                 ),
                 name="romeo", # name is optional, but recommended - it will be shown in the Proxmox GUI
-                ram_mb=512 # optional, default is 2048 MB
-                vcpus=4 # optional, default is 2. No attempt is made to check that this will fit in the Proxmox host.
+                ram_mb=512, # optional, default is 2048 MB
+                vcpus=4, # optional, default is 2. No attempt is made to check that this will fit in the Proxmox host.
                 uefi_boot=True # optional, default is False. Generally only needed for Windows VMs.
             ),
             # A virtual machine from a local OVA, which will be uploaded from here to the Proxmox server.

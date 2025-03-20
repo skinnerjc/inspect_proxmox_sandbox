@@ -137,7 +137,7 @@ class QemuCommands(abc.ABC):
     async def start_and_await(
         self,
         vm_id: int,
-        is_sandbox: bool = True,
+        is_sandbox: bool,
     ) -> None:
         await self.async_proxmox.request(
             "POST",
