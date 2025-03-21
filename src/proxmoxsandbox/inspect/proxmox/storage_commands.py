@@ -1,7 +1,7 @@
 import abc
-import uuid
 from logging import getLogger
-from typing import Literal
+from pathlib import Path
+from typing import Literal, Optional
 
 from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
@@ -25,9 +25,9 @@ class StorageCommands(abc.ABC):
 
     async def upload_file_to_storage(
         self,
-        content: bytes,
-        filename: str,
-        file_type: Literal["iso", "vztmpl", "import"],
+        file: Path,
+        content_type: Literal["iso", "vztmpl", "import"],
+        filename: Optional[str] = None,
         overwrite: bool = False,
     ) -> None:
         """
@@ -36,18 +36,19 @@ class StorageCommands(abc.ABC):
         Args:
             storage: The storage name in Proxmox
             content: The binary content of the file
-            filename: The filename to use for the file in Proxmox storage
             file_type: One of the file types supported by Proxmox
+            filename: The filename to use for the file in Proxmox storage. If not provided, the filename of the file will be used.
             overwrite: Whether to overwrite the file if it already exists. If False, this function will return immediately if the file already exists.
         """
+        if not isinstance(file, Path):
+            raise ValueError(f"{file=} must be a Path; got {type(file)}")
 
+        if filename is None:
+            filename = file.name
         if not overwrite:
             existing_content = await self.async_proxmox.request(
                 "GET",
-                f"/nodes/{self.node}/storage/{self.storage}/content?content={file_type}",
-                # json={
-                #     "content" : file_type,
-                # }
+                f"/nodes/{self.node}/storage/{self.storage}/content?content={content_type}",
             )
             for existing_file in existing_content:
                 if "volid" in existing_file and existing_file["volid"].endswith(
@@ -58,25 +59,9 @@ class StorageCommands(abc.ABC):
                     )
                     return
 
-        boundary = str(uuid.uuid4())
-
-        # Construct the multipart form-data payload
-        payload: bytes = (
-            f"--{boundary}\r\n"
-            f'Content-Disposition: form-data; name="content"\r\n\r\n{file_type}\r\n'
-            f"--{boundary}\r\n"
-            f'Content-Disposition: form-data; name="filename"; filename="{filename}"\r\n'
-            f"Content-Length: {len(content)}\r\n\r\n"
-        ).encode("us-ascii")
-
-        payload += content + f"\r\n--{boundary}--\r\n".encode("us-ascii")
-
-        async def upload_file() -> None:
-            await self.async_proxmox.request(
-                "POST",
-                f"/nodes/{self.node}/storage/{self.storage}/upload",
-                body_content=payload,
-                content_type=f"multipart/form-data; boundary={boundary}",
+        async def do_upload():
+            await self.async_proxmox.upload_file_with_curl(
+                self.node, self.storage, file, content_type
             )
 
-        await self.task_wrapper.do_action_and_wait_for_tasks(upload_file)
+        await self.task_wrapper.do_action_and_wait_for_tasks(do_upload)

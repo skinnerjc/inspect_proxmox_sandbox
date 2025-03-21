@@ -216,9 +216,8 @@ class QemuCommands(abc.ABC):
                 )
             if isinstance(vm_config.vm_source_config.ova, Path):
                 await self.storage_commands.upload_file_to_storage(
-                    content=vm_config.vm_source_config.ova.read_bytes(),
-                    filename=vm_config.vm_source_config.ova.name,
-                    file_type="import",
+                    file=vm_config.vm_source_config.ova,
+                    content_type="import",
                 )
 
                 json_for_create: ProxmoxJsonDataType = {

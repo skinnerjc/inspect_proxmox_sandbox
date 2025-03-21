@@ -1,4 +1,7 @@
 import abc
+import os
+from pathlib import Path
+import tempfile
 from ipaddress import ip_address, ip_network
 from logging import getLogger
 from typing import Dict, get_args
@@ -83,7 +86,7 @@ runcmd:
         """
         Creates a cloud-init ISO and uploads it to Proxmox storage.
 
-        The ISO is created in memory and uploaded directly without writing to disk.
+        The ISO is created in a temporary file and then uploaded to Proxmox.
         """
         from io import BytesIO
 
@@ -117,17 +120,22 @@ runcmd:
                     rr_name=proper_name,
                 )
 
-        # Write ISO to memory
-        iso_buffer = BytesIO()
-        iso.write_fp(iso_buffer)
-        iso.close()
+        # Create a temporary file and write the ISO to it
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.iso') as temp_file:
+            iso.write_fp(temp_file)
+            temp_file_path = Path(temp_file.name)
 
-        iso_data = iso_buffer.getvalue()
-        filename = f"vm-{vm_id}-cl00udinit.iso"
+            try:   
+                filename = f"vm-{vm_id}-cl00udinit.iso"
 
-        await self.storage_commands.upload_file_to_storage(
-            content=iso_data, filename=filename, file_type="iso", overwrite=True
-        )
+                await self.storage_commands.upload_file_to_storage(
+                    file=temp_file_path, content_type="iso", overwrite=True, file_name=filename
+                )
+
+            finally:
+                # Clean up the temporary file
+                if os.path.exists(temp_file_path):
+                    os.unlink(temp_file_path)
 
         @tenacity.retry(
             wait=tenacity.wait_exponential(min=1, exp_base=1.3),
