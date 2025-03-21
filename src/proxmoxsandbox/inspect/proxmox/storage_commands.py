@@ -61,7 +61,7 @@ class StorageCommands(abc.ABC):
 
         async def do_upload():
             await self.async_proxmox.upload_file_with_curl(
-                self.node, self.storage, file, content_type
+                self.node, self.storage, file, content_type, filename=filename
             )
 
         await self.task_wrapper.do_action_and_wait_for_tasks(do_upload)
