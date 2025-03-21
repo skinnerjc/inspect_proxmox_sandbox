@@ -129,7 +129,7 @@ runcmd:
                 filename = f"vm-{vm_id}-cl00udinit.iso"
 
                 await self.storage_commands.upload_file_to_storage(
-                    file=temp_file_path, content_type="iso", overwrite=True, file_name=filename
+                    file=temp_file_path, content_type="iso", overwrite=True, filename=filename
                 )
 
             finally:
