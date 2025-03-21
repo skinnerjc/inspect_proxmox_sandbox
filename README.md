@@ -197,6 +197,7 @@ including the running processes. See [snapshots.py](./src/proxmoxsandbox/experim
 ## Tech debt
 
 - Does not work with Inspect's post-hoc sandbox cleanup feature
+- Large OVA uploads use PycURL, because neither aiohttp nor httpx worked with large uploads
 
 ## Developing
 
