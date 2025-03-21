@@ -7,7 +7,7 @@ from pathlib import Path
 import pycurl
 from io import BytesIO
 
-import aiohttp
+import httpx
 from inspect_ai.util import (
     OutputLimitExceededError,
     trace_action,
@@ -41,22 +41,18 @@ class AsyncProxmoxAPI:
     def __hash__(self):
         return hash((self.api_base_url, self.username, self.password, self.verify_ssl))
 
-    async def _login(self, session: aiohttp.ClientSession):
+    async def _login(self, client: httpx.AsyncClient):
         """Get new authentication ticket and CSRF token."""
         with trace_action(self.logger, self.TRACE_NAME, "login"):
-            async with session.post(
+            response = await client.post(
                 f"{self.api_base_url}/access/ticket",
                 data={"username": self.username, "password": self.password},
-                ssl=False,
-            ) as response:
-                if response.status != 200:
-                    text = await response.text()
-                    response.raise_for_status()
+            )
+            response.raise_for_status()
 
-                response_data = await response.json()
-                data = response_data["data"]
-                self.ticket = data["ticket"]
-                self.csrf_token = data["CSRFPreventionToken"]
+            data = response.json()["data"]
+            self.ticket = data["ticket"]
+            self.csrf_token = data["CSRFPreventionToken"]
 
     async def request(
         self,
@@ -69,61 +65,48 @@ class AsyncProxmoxAPI:
     ):
         if json is not None:
             content_type = "application/json"
-
-        ssl = None if self.verify_ssl else False
-        timeout = aiohttp.ClientTimeout(
-            total=60, connect=5, sock_connect=5, sock_read=60
-        )
-
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with httpx.AsyncClient(
+            verify=self.verify_ssl,
+            timeout=httpx.Timeout(connect=5, read=60, write=60, pool=60),
+        ) as client:
             # Always get a fresh ticket if we don't have one
             if not self.ticket:
-                await self._login(session)
+                await self._login(client)
 
             if self.csrf_token is None:
                 raise ValueError("CSRF token was not set by login")
 
             headers = self._prepare_headers(method, content_type)
 
-            async with session.request(
+            response = await client.request(
                 method,
                 f"{self.api_base_url}{path}",
                 headers=headers,
                 json=json,
-                ssl=ssl,
-                data=body_content,
-            ) as response:
-                # If we get a 401, our ticket might have expired (2 hour lifetime)
-                # Try to login once and retry the request
-                if response.status == 401:
-                    await self._login(session)
-                    headers = self._prepare_headers(method, content_type)
+                data=body_content
+            )
+            # If we get a 401, our ticket might have expired (2 hour lifetime)
+            # Try to login once and retry the request
+            if response.status_code == 401:
+                await self._login(client)
+                headers = self._prepare_headers(method, content_type)
 
-                    async with session.request(
-                        method,
-                        f"{self.api_base_url}{path}",
-                        headers=headers,
-                        ssl=ssl,
-                    ) as retry_response:
-                        response = retry_response
+                response = await client.request(
+                    method, f"{self.api_base_url}{path}", headers=headers,                 
+                    json=json,
+                    data=body_content
+                )
 
-                if response.status >= 400 and raise_errors:
-                    # Include response text in the error message
-                    text = await response.text()
-                    message = f"HTTP response error: {response.status} {response.reason}: {text}"
-                    raise aiohttp.ClientResponseError(
-                        response.request_info,
-                        response.history,
-                        status=response.status,
-                        message=message,
-                        headers=response.headers,
-                    )
-
-                response_json = await response.json()
-                if response.status >= 400:
-                    return response_json
-
-                return response_json["data"]
+            if response.is_error and raise_errors:
+                # deliberately not using response.raise_for_status here as it does not include response.text in the raised error
+                message = f"HTTP response error: {response.status_code} {response.reason_phrase}"
+                if response.text:
+                    message += f": {response.text}"
+                raise httpx.HTTPStatusError(message, request=response.request, response=response)
+            else:
+                if response.is_error:
+                    return response.json()
+            return response.json()["data"]
 
     def _prepare_headers(self, method: str, content_type: str | None):
         headers = {
@@ -164,52 +147,40 @@ class AsyncProxmoxAPI:
         """
         path = f"/nodes/{node}/qemu/{vm_id}/agent/file-read"
 
-        ssl = None if self.verify_ssl else False
-        timeout = aiohttp.ClientTimeout(
-            total=60, connect=5, sock_connect=5, sock_read=60
-        )
-
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with httpx.AsyncClient(
+            verify=self.verify_ssl,
+            timeout=httpx.Timeout(connect=5, read=60, write=60, pool=60),
+        ) as client:
             # ping to refresh token if needed, so we don't have to do it in the stream
             await self._ping_qemu_agent(node, vm_id)
 
-            headers = {
-                "Cookie": f"PVEAuthCookie={self.ticket}",
-            }
-
-            async with session.get(
+            async with client.stream(
+                "GET",
                 f"{self.api_base_url}{path}",
-                headers=headers,
+                headers={
+                    "Cookie": f"PVEAuthCookie={self.ticket}",
+                },
                 params={"file": filepath},
-                ssl=ssl,
             ) as response:
-                if response.status != 200:
-                    text = await response.text()
-                    raise aiohttp.ClientResponseError(
-                        response.request_info,
-                        response.history,
-                        status=response.status,
-                        message=f"HTTP response error: {response.status} {response.reason}: {text}",
-                        headers=response.headers,
-                    )
+                response.raise_for_status()
 
                 # Check Content-Length if available
-                content_length = response.headers.get("Content-Length")
+                content_length = response.headers.get("content-length")
                 if content_length and max_size:
                     if int(content_length) > max_size:
+                        await response.aclose()
                         raise OutputLimitExceededError(max_size_str, None)
 
                 # Read the response in chunks
                 chunks = []
                 total_size = 0
 
-                async for chunk, _ in response.content.iter_chunks():
+                async for chunk in response.aiter_bytes(chunk_size=8192):
                     chunks.append(chunk)
                     total_size += len(chunk)
 
                     if max_size and total_size > max_size:
-                        # Close the response
-                        response.close()
+                        await response.aclose()
 
                         truncated_json = from_json(
                             b"".join(chunks) + b'"', allow_partial=True
@@ -224,8 +195,7 @@ class AsyncProxmoxAPI:
 
                 # Combine chunks and parse JSON
                 full_response = b"".join(chunks)
-                response_json = json.loads(full_response)
-                return response_json["data"]
+                return httpx.Response(200, content=full_response).json()["data"]
 
     async def upload_file_with_curl(
         self,
