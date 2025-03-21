@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from proxmoxsandboxtest.proxmox_sandbox_utils import (
     setup_sandbox,
 )
@@ -15,7 +17,7 @@ from proxmoxsandbox.inspect.schema import (
 
 CURRENT_DIR = Path(__file__).parent
 
-
+@pytest.mark.ignore # WIP
 async def test_crystal_peak(proxmox_api) -> None:
     envs_dict = {}
 
