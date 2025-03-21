@@ -60,7 +60,7 @@ class AsyncProxmoxAPI:
         raise_errors: bool = True,
         content_type: str | None = None,
         json: Optional[ProxmoxJsonDataType] = None,
-        body_content: Optional[str] = None,
+        body_content: Optional[str|bytes] = None,
     ):
         if json is not None:
             content_type = "application/json"

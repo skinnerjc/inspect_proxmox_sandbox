@@ -61,7 +61,7 @@ class StorageCommands(abc.ABC):
         boundary = str(uuid.uuid4())
 
         # Construct the multipart form-data payload
-        payload = (
+        payload: bytes = (
             f"--{boundary}\r\n"
             f'Content-Disposition: form-data; name="content"\r\n\r\n{file_type}\r\n'
             f"--{boundary}\r\n"
