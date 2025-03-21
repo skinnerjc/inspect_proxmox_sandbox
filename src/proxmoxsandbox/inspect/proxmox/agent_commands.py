@@ -27,8 +27,8 @@ class AgentCommands:
         self.node = node
 
     async def get_agent_exec_status(self, vm_id: int, pid: int):
-        path = f"/nodes/{self.node}/qemu/{vm_id}/agent/exec-status"
-        return await self.async_proxmox.request("GET", path, params={"pid": pid})
+        path = f"/nodes/{self.node}/qemu/{vm_id}/agent/exec-status?pid={pid}"
+        return await self.async_proxmox.request("GET", path)
 
     async def write_file(self, vm_id: int, content: bytes, filepath: str):
         """Write a file to the VM using QEMU agent."""

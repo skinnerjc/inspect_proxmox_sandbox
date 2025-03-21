@@ -75,7 +75,7 @@ class StorageCommands(abc.ABC):
             await self.async_proxmox.request(
                 "POST",
                 f"/nodes/{self.node}/storage/{self.storage}/upload",
-                content=payload,
+                body_content=payload,
                 content_type=f"multipart/form-data; boundary={boundary}",
             )
 

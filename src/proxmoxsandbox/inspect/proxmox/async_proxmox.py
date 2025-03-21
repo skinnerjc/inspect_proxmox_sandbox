@@ -59,7 +59,7 @@ class AsyncProxmoxAPI:
         raise_errors: bool = True,
         content_type: str | None = None,
         json: Optional[ProxmoxJsonDataType] = None,
-        **kwargs,
+        body_content: Optional[str] = None
     ):
         if json is not None:
             content_type = "application/json"
@@ -83,7 +83,7 @@ class AsyncProxmoxAPI:
                 headers=headers,
                 json=json,
                 ssl=ssl,
-                **kwargs,
+                data=body_content,
             ) as response:
                 # If we get a 401, our ticket might have expired (2 hour lifetime)
                 # Try to login once and retry the request

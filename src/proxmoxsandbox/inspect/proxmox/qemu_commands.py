@@ -316,7 +316,7 @@ class QemuCommands(abc.ABC):
                 await self.async_proxmox.request(
                     "PUT",
                     f"/nodes/{self.node}/qemu/{vm_id}/config",
-                    content=f"delete={key}",
+                    body_content=f"delete={key}",
                     content_type="application/x-www-form-urlencoded",
                 )
 
