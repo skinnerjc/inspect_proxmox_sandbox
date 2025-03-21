@@ -1,13 +1,13 @@
-import json
-from logging import getLogger
-from typing import Dict, List, Optional, Union, Literal
 import asyncio
+import json
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
-import pycurl
 from io import BytesIO
+from logging import getLogger
+from pathlib import Path
+from typing import Dict, List, Literal, Optional, Union
 
 import httpx
+import pycurl
 from inspect_ai.util import (
     OutputLimitExceededError,
     trace_action,
@@ -61,7 +61,7 @@ class AsyncProxmoxAPI:
         raise_errors: bool = True,
         content_type: str | None = None,
         json: Optional[ProxmoxJsonDataType] = None,
-        body_content: Optional[str|bytes] = None,
+        body_content: Optional[str | bytes] = None,
     ):
         if json is not None:
             content_type = "application/json"
@@ -83,7 +83,7 @@ class AsyncProxmoxAPI:
                 f"{self.api_base_url}{path}",
                 headers=headers,
                 json=json,
-                data=body_content
+                data=body_content,
             )
             # If we get a 401, our ticket might have expired (2 hour lifetime)
             # Try to login once and retry the request
@@ -92,9 +92,11 @@ class AsyncProxmoxAPI:
                 headers = self._prepare_headers(method, content_type)
 
                 response = await client.request(
-                    method, f"{self.api_base_url}{path}", headers=headers,                 
+                    method,
+                    f"{self.api_base_url}{path}",
+                    headers=headers,
                     json=json,
-                    data=body_content
+                    data=body_content,
                 )
 
             if response.is_error and raise_errors:
@@ -102,7 +104,9 @@ class AsyncProxmoxAPI:
                 message = f"HTTP response error: {response.status_code} {response.reason_phrase}"
                 if response.text:
                     message += f": {response.text}"
-                raise httpx.HTTPStatusError(message, request=response.request, response=response)
+                raise httpx.HTTPStatusError(
+                    message, request=response.request, response=response
+                )
             else:
                 if response.is_error:
                     return response.json()
@@ -206,72 +210,81 @@ class AsyncProxmoxAPI:
         filename: Optional[str] = None,
     ) -> dict:
         """Upload a file to Proxmox storage using pycurl (better for large file uploads).
-        
+
         Args:
             node: The node name
             storage: The storage name
             file: Path to the file to upload
             content_type: The type of content (iso, vztmpl, or import)
             filename: Optional custom filename to use (defaults to file.name)
-            
+
         Returns:
             The API response data
         """
-        if not self.ticket or not self.csrf_token:
-            # Create a session just to get auth tokens
-            async with aiohttp.ClientSession() as session:
-                await self._login(session)
-        
+
         # This function will be run in a thread
         def do_upload():
             if not file.exists():
                 raise FileNotFoundError(f"File not found: {file}")
-            
+
             # Use provided filename or the original filename
             actual_filename = filename or file.name
-            
+
             # Set up the curl object
             curl = pycurl.Curl()
             response_buffer = BytesIO()
-            
+
             # Set basic curl options
-            curl.setopt(pycurl.URL, f"{self.api_base_url}/nodes/{node}/storage/{storage}/upload")
+            curl.setopt(
+                pycurl.URL, f"{self.api_base_url}/nodes/{node}/storage/{storage}/upload"
+            )
             curl.setopt(pycurl.WRITEDATA, response_buffer)
-            
+
             # Set SSL verification options
             if not self.verify_ssl:
                 curl.setopt(pycurl.SSL_VERIFYPEER, 0)
                 curl.setopt(pycurl.SSL_VERIFYHOST, 0)
-            
+
             # Set auth headers
             headers = [
                 f"Cookie: PVEAuthCookie={self.ticket}",
                 f"CSRFPreventionToken: {self.csrf_token}",
             ]
             curl.setopt(pycurl.HTTPHEADER, headers)
-            
+
             # Set up the form data
-            curl.setopt(pycurl.HTTPPOST, [
-                ("content", content_type),
-                ("filename", (pycurl.FORM_FILE, str(file), pycurl.FORM_FILENAME, actual_filename)),
-            ])
-            
+            curl.setopt(
+                pycurl.HTTPPOST,
+                [
+                    ("content", content_type),
+                    (
+                        "filename",
+                        (
+                            pycurl.FORM_FILE,
+                            str(file),
+                            pycurl.FORM_FILENAME,
+                            actual_filename,
+                        ),
+                    ),
+                ],
+            )
+
             # Execute the request
             curl.perform()
-            
+
             # Get response code and data
             status_code = curl.getinfo(pycurl.RESPONSE_CODE)
             curl.close()
-            
+
             # Get response data
-            response_data = response_buffer.getvalue().decode('utf-8')
+            response_data = response_buffer.getvalue().decode("utf-8")
             response_json = json.loads(response_data)
-            
+
             if status_code >= 400:
                 raise ValueError(f"Error uploading file: {response_json}")
-            
+
             return response_json.get("data", {})
-        
+
         # Run the upload in a thread to avoid blocking the event loop
         with trace_action(self.logger, self.TRACE_NAME, "upload_file_with_curl"):
             loop = asyncio.get_event_loop()
