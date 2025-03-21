@@ -33,7 +33,7 @@ class AgentCommands:
     async def write_file(self, vm_id: int, content: bytes, filepath: str):
         """Write a file to the VM using QEMU agent."""
         path = f"/nodes/{self.node}/qemu/{vm_id}/agent/file-write"
-        data = {
+        data: ProxmoxJsonDataType = {
             # It's necessary to encode the content as base-64 ourselves, otherwise a string with non-ASCII characters gets mangled
             # You see the following:
             # ERROR: ResourceException('500 Internal Server Error: Wide character in subroutine entry at /usr/share/perl5/PVE/API2/Qemu/Agent.pm line 491.')
@@ -47,7 +47,7 @@ class AgentCommands:
             self.TRACE_NAME,
             f"write_file {vm_id=} {filepath=} {len(content)=}",
         ):
-            return await self.async_proxmox.request("POST", path, data=data)
+            return await self.async_proxmox.request("POST", path, json=data)
 
     async def exec_command(self, vm_id: int, command: List[str]):
         """Execute a command in the VM using QEMU agent."""
@@ -98,8 +98,8 @@ class AgentCommands:
 
     async def create_snapshot(self, vm_id: int, snapshot_name: str) -> None:
         path = f"/nodes/{self.node}/qemu/{vm_id}/snapshot"
-        data = {"snapname": snapshot_name, "vmstate": 1}
-        await self.async_proxmox.request("POST", path, data=data)
+        data: ProxmoxJsonDataType = {"snapname": snapshot_name, "vmstate": 1}
+        await self.async_proxmox.request("POST", path, json=data)
 
     async def rollback_to_snapshot(self, vm_id: int, snapshot_name: str) -> None:
         path = f"/nodes/{self.node}/qemu/{vm_id}/snapshot/{snapshot_name}/rollback"

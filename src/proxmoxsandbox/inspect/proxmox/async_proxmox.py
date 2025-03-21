@@ -1,3 +1,4 @@
+import json
 from logging import getLogger
 from typing import Dict, List, Optional, Union
 
@@ -41,12 +42,12 @@ class AsyncProxmoxAPI:
             async with session.post(
                 f"{self.api_base_url}/access/ticket",
                 data={"username": self.username, "password": self.password},
-                ssl=False
+                ssl=False,
             ) as response:
                 if response.status != 200:
                     text = await response.text()
                     response.raise_for_status()
-                
+
                 response_data = await response.json()
                 data = response_data["data"]
                 self.ticket = data["ticket"]
@@ -59,14 +60,16 @@ class AsyncProxmoxAPI:
         raise_errors: bool = True,
         content_type: str | None = None,
         json: Optional[ProxmoxJsonDataType] = None,
-        body_content: Optional[str] = None
+        body_content: Optional[str] = None,
     ):
         if json is not None:
             content_type = "application/json"
-        
+
         ssl = None if self.verify_ssl else False
-        timeout = aiohttp.ClientTimeout(total=60, connect=5, sock_connect=5, sock_read=60)
-        
+        timeout = aiohttp.ClientTimeout(
+            total=60, connect=5, sock_connect=5, sock_read=60
+        )
+
         async with aiohttp.ClientSession(timeout=timeout) as session:
             # Always get a fresh ticket if we don't have one
             if not self.ticket:
@@ -76,7 +79,7 @@ class AsyncProxmoxAPI:
                 raise ValueError("CSRF token was not set by login")
 
             headers = self._prepare_headers(method, content_type)
-            
+
             async with session.request(
                 method,
                 f"{self.api_base_url}{path}",
@@ -92,14 +95,13 @@ class AsyncProxmoxAPI:
                     headers = self._prepare_headers(method, content_type)
 
                     async with session.request(
-                        method, 
-                        f"{self.api_base_url}{path}", 
-                        headers=headers, 
+                        method,
+                        f"{self.api_base_url}{path}",
+                        headers=headers,
                         ssl=ssl,
-                        **kwargs
                     ) as retry_response:
                         response = retry_response
-                        
+
                 if response.status >= 400 and raise_errors:
                     # Include response text in the error message
                     text = await response.text()
@@ -111,11 +113,11 @@ class AsyncProxmoxAPI:
                         message=message,
                         headers=response.headers,
                     )
-                
+
                 response_json = await response.json()
                 if response.status >= 400:
                     return response_json
-                
+
                 return response_json["data"]
 
     def _prepare_headers(self, method: str, content_type: str | None):
@@ -156,10 +158,12 @@ class AsyncProxmoxAPI:
             FileTooLargeError: If the file size exceeds max_size
         """
         path = f"/nodes/{node}/qemu/{vm_id}/agent/file-read"
-        
+
         ssl = None if self.verify_ssl else False
-        timeout = aiohttp.ClientTimeout(total=60, connect=5, sock_connect=5, sock_read=60)
-        
+        timeout = aiohttp.ClientTimeout(
+            total=60, connect=5, sock_connect=5, sock_read=60
+        )
+
         async with aiohttp.ClientSession(timeout=timeout) as session:
             # ping to refresh token if needed, so we don't have to do it in the stream
             await self._ping_qemu_agent(node, vm_id)
@@ -167,7 +171,7 @@ class AsyncProxmoxAPI:
             headers = {
                 "Cookie": f"PVEAuthCookie={self.ticket}",
             }
-            
+
             async with session.get(
                 f"{self.api_base_url}{path}",
                 headers=headers,
@@ -193,7 +197,7 @@ class AsyncProxmoxAPI:
                 # Read the response in chunks
                 chunks = []
                 total_size = 0
-                
+
                 async for chunk, _ in response.content.iter_chunks():
                     chunks.append(chunk)
                     total_size += len(chunk)
@@ -201,7 +205,7 @@ class AsyncProxmoxAPI:
                     if max_size and total_size > max_size:
                         # Close the response
                         response.close()
-                        
+
                         truncated_json = from_json(
                             b"".join(chunks) + b'"', allow_partial=True
                         )
@@ -215,5 +219,5 @@ class AsyncProxmoxAPI:
 
                 # Combine chunks and parse JSON
                 full_response = b"".join(chunks)
-                response_json = await aiohttp.ClientResponse._json_loads(response, full_response)
+                response_json = json.loads(full_response)
                 return response_json["data"]
