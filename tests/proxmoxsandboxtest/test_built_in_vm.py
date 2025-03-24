@@ -1,5 +1,5 @@
-from proxmoxsandbox.inspect.proxmox.built_in_vm import BuiltInVM
-from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands
+from proxmoxsandbox._impl.built_in_vm import BuiltInVM
+from proxmoxsandbox._impl.qemu_commands import QemuCommands
 
 
 async def test_ubuntu(qemu_commands: QemuCommands, built_in_vm: BuiltInVM) -> None:

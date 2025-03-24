@@ -9,13 +9,13 @@ from typing import Dict, get_args
 import tenacity
 from inspect_ai.util import trace_action
 
-from proxmoxsandbox.inspect.proxmox.agent_commands import AgentCommands
-from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands
-from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
-from proxmoxsandbox.inspect.proxmox.storage_commands import StorageCommands
-from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
-from proxmoxsandbox.inspect.schema import (
+from proxmoxsandbox._impl.agent_commands import AgentCommands
+from proxmoxsandbox._impl.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox._impl.qemu_commands import QemuCommands
+from proxmoxsandbox._impl.sdn_commands import SdnCommands
+from proxmoxsandbox._impl.storage_commands import StorageCommands
+from proxmoxsandbox._impl.task_wrapper import TaskWrapper
+from proxmoxsandbox.schema import (
     DhcpRange,
     SdnConfig,
     SubnetConfig,

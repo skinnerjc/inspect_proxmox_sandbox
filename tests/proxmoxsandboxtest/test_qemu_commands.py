@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from proxmoxsandbox.inspect.proxmox.built_in_vm import BuiltInVM
-from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands, VnetAliases
-from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
-from proxmoxsandbox.inspect.schema import (
+from proxmoxsandbox._impl.built_in_vm import BuiltInVM
+from proxmoxsandbox._impl.qemu_commands import QemuCommands, VnetAliases
+from proxmoxsandbox._impl.sdn_commands import SdnCommands
+from proxmoxsandbox.schema import (
     SdnConfig,
     VmConfig,
     VmNicConfig,

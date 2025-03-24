@@ -6,12 +6,12 @@ from typing import List, Optional, Tuple, TypeAlias
 
 from inspect_ai.util import trace_action
 
-from proxmoxsandbox.inspect.proxmox.async_proxmox import (
+from proxmoxsandbox._impl.async_proxmox import (
     AsyncProxmoxAPI,
     ProxmoxJsonDataType,
 )
-from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
-from proxmoxsandbox.inspect.schema import (
+from proxmoxsandbox._impl.task_wrapper import TaskWrapper
+from proxmoxsandbox.schema import (
     DhcpRange,
     SdnConfig,
     SdnConfigType,

@@ -1,5 +1,5 @@
-from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from proxmoxsandbox.inspect.proxmox.infra_commands import InfraCommands
+from proxmoxsandbox._impl.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox._impl.infra_commands import InfraCommands
 
 import pytest
 

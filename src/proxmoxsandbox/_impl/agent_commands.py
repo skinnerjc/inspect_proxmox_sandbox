@@ -8,7 +8,7 @@ from inspect_ai.util import (
     trace_action,
 )
 
-from proxmoxsandbox.inspect.proxmox.async_proxmox import (
+from proxmoxsandbox._impl.async_proxmox import (
     AsyncProxmoxAPI,
     ProxmoxJsonDataType,
 )

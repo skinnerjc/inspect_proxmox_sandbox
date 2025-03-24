@@ -4,12 +4,12 @@ from typing import Tuple
 
 from inspect_ai.util import trace_action
 
-from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from proxmoxsandbox.inspect.proxmox.built_in_vm import BuiltInVM
-from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands
-from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
-from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
-from proxmoxsandbox.inspect.schema import (
+from proxmoxsandbox._impl.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox._impl.built_in_vm import BuiltInVM
+from proxmoxsandbox._impl.qemu_commands import QemuCommands
+from proxmoxsandbox._impl.sdn_commands import SdnCommands
+from proxmoxsandbox._impl.task_wrapper import TaskWrapper
+from proxmoxsandbox.schema import (
     SdnConfigType,
     VmConfig,
 )

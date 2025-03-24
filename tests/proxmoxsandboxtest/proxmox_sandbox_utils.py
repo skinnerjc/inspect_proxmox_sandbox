@@ -3,7 +3,7 @@ from typing import Dict, Tuple
 
 from inspect_ai.util import SandboxEnvironment
 
-from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
+from proxmoxsandbox.proxmox_sandbox_environment import (
     ProxmoxSandboxEnvironment,
     ProxmoxSandboxEnvironmentConfig,
 )

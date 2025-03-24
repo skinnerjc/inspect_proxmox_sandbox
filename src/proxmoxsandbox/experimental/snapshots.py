@@ -8,7 +8,7 @@ from inspect_ai.util import SandboxEnvironmentSpec, sandbox, store
 from inspect_ai.approval import ApprovalPolicy, human_approver, auto_approver
 
 
-from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
+from proxmoxsandbox.proxmox_sandbox_environment import (
     ProxmoxSandboxEnvironment,
     ProxmoxSandboxEnvironmentConfig,
 )

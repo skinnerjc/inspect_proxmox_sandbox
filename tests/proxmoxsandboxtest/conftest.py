@@ -4,11 +4,11 @@ from typing import AsyncGenerator
 
 import pytest
 
-from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from proxmoxsandbox.inspect.proxmox.built_in_vm import BuiltInVM
-from proxmoxsandbox.inspect.proxmox.qemu_commands import QemuCommands, VnetAliases
-from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
-from proxmoxsandbox.inspect.proxmox_sandbox_environment import (
+from proxmoxsandbox._impl.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox._impl.built_in_vm import BuiltInVM
+from proxmoxsandbox._impl.qemu_commands import QemuCommands, VnetAliases
+from proxmoxsandbox._impl.sdn_commands import SdnCommands
+from proxmoxsandbox.proxmox_sandbox_environment import (
     ProxmoxSandboxEnvironment,
     ProxmoxSandboxEnvironmentConfig,
 )

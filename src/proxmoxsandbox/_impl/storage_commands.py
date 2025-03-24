@@ -3,8 +3,8 @@ from logging import getLogger
 from pathlib import Path
 from typing import Literal, Optional
 
-from proxmoxsandbox.inspect.proxmox.async_proxmox import AsyncProxmoxAPI
-from proxmoxsandbox.inspect.proxmox.task_wrapper import TaskWrapper
+from proxmoxsandbox._impl.async_proxmox import AsyncProxmoxAPI
+from proxmoxsandbox._impl.task_wrapper import TaskWrapper
 
 
 class StorageCommands(abc.ABC):

@@ -4,7 +4,7 @@ from typing import List
 from inspect_ai.util._sandbox.self_check import self_check
 from .proxmox_sandbox_utils import setup_requests_logging
 
-from proxmoxsandbox.inspect.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
+from proxmoxsandbox.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
 
 
 async def test_exec_10mb_limit(

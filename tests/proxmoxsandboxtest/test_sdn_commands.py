@@ -1,7 +1,7 @@
 from pytest import raises
 
-from proxmoxsandbox.inspect.proxmox.sdn_commands import SdnCommands
-from proxmoxsandbox.inspect.schema import DhcpRange, SdnConfig, SubnetConfig, VnetConfig
+from proxmoxsandbox._impl.sdn_commands import SdnCommands
+from proxmoxsandbox.schema import DhcpRange, SdnConfig, SubnetConfig, VnetConfig
 
 
 async def test_create_sdn_no_vnets(ids_start: str, sdn_commands: SdnCommands) -> None:

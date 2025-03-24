@@ -5,8 +5,8 @@ from inspect_ai.util import SandboxConnection, SandboxEnvironment
 
 from .proxmox_sandbox_utils import setup_sandbox
 
-from proxmoxsandbox.inspect.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
-from proxmoxsandbox.inspect.schema import (
+from proxmoxsandbox.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
+from proxmoxsandbox.schema import (
     DhcpRange,
     ProxmoxSandboxEnvironmentConfig,
     SdnConfig,
