@@ -301,4 +301,5 @@ class SdnCommands(abc.ABC):
 
         with trace_action(self.logger, self.TRACE_NAME, "cleanup all SDNs"):
             await self.tear_down_sdn_zones_and_vnets(self._created_sdns.get())
+            self._cleanup_completed.set(True)
 

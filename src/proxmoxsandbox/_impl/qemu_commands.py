@@ -455,4 +455,5 @@ class QemuCommands(abc.ABC):
             for vm_id in self._running_proxmox_vms.get():
                 # TODO parallelize this
                 await self.destroy_vm(vm_id)
+            self._cleanup_completed.set(True)
 
