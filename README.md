@@ -81,7 +81,6 @@ sandbox=SandboxEnvironmentSpec(
                         mac="00:16:3d:1d:eb:a0"
                     ),
                 )
-                # extra_proxmox_native_config = dict() TODO
             ),
             # A virtual machine from a local OVA, which will be uploaded from here to the Proxmox server.
             VmConfig(
@@ -192,12 +191,7 @@ including the running processes. See [snapshots.py](./src/proxmoxsandbox/experim
 
 ## Tech debt
 
-- instructions on how to run tests
-- validate there is at least one sandbox
-- add escape hatch for proxmox API
-- pydocs instead of inline comments on fields etc
-- Does not work with Inspect's post-hoc CLI sandbox cleanup feature
-- instructions on how to change the password on an agent VM
+- Does not work with Inspect's post-hoc sandbox cleanup feature
 - Large OVA uploads use PycURL, because neither aiohttp nor httpx worked with large uploads
 
 ## Developing

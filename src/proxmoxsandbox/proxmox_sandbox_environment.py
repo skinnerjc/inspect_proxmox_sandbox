@@ -257,21 +257,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         config: SandboxEnvironmentConfigType | None,
         cleanup: bool,
     ) -> None:
-        if config is None:
-            getLogger
-            config = ProxmoxSandboxEnvironmentConfig()
-
-        if not isinstance(config, ProxmoxSandboxEnvironmentConfig):
-            raise ValueError("config must be a ProxmoxSandboxEnvironmentConfig")
-
-        infra_commands = InfraCommands(
-            async_proxmox=cls.create_async_proxmox_api(config), node=config.node
-        )
-
-        if cleanup:
-            await infra_commands.cleanup()
-        else:
-            print("I don't know what to do!!")
+        return None
 
     @classmethod
     async def cli_cleanup(cls, id: str | None) -> None:
