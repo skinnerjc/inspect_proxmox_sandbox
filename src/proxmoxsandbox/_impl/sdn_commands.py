@@ -1,8 +1,9 @@
 import abc
+from contextvars import ContextVar
 from ipaddress import ip_address, ip_network
 from logging import getLogger
 from random import shuffle
-from typing import List, Optional, Tuple, TypeAlias
+from typing import Collection, List, Optional, Set, Tuple, TypeAlias
 
 from inspect_ai.util import trace_action
 
@@ -31,6 +32,14 @@ class SdnCommands(abc.ABC):
 
     async_proxmox: AsyncProxmoxAPI
     task_wrapper: TaskWrapper
+
+    _created_sdns: ContextVar[Set[str]] = ContextVar(
+    "proxmox_created_sdns", default=set()
+    )
+    _cleanup_completed: ContextVar[bool] = ContextVar(
+        "proxmox_sdns_cleanup_executed", default=False
+    )
+
 
     def __init__(self, async_proxmox: AsyncProxmoxAPI):
         self.async_proxmox = async_proxmox
@@ -257,7 +266,7 @@ class SdnCommands(abc.ABC):
     async def tear_down_sdn_zone_and_vnet(self, sdn_zone_id: str) -> None:
         await self.tear_down_sdn_zones_and_vnets([sdn_zone_id])
 
-    async def tear_down_sdn_zones_and_vnets(self, sdn_zone_ids: List[str]) -> None:
+    async def tear_down_sdn_zones_and_vnets(self, sdn_zone_ids: Collection[str]) -> None:
         with trace_action(self.logger, self.TRACE_NAME, f"delete SDNs {sdn_zone_ids}"):
             for sdn_zone_id in sdn_zone_ids:
                 all_vnets = await self.async_proxmox.request(
@@ -285,3 +294,11 @@ class SdnCommands(abc.ABC):
                 )
 
         await self.do_update_all_sdn()
+
+    async def cleanup(self) -> None:
+        if self._cleanup_completed.get():
+            return
+
+        with trace_action(self.logger, self.TRACE_NAME, "cleanup all SDNs"):
+            await self.tear_down_sdn_zones_and_vnets(self._created_sdns.get())
+

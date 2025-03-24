@@ -74,3 +74,7 @@ class InfraCommands(abc.ABC):
             await self.qemu_commands.destroy_vm(vm_id=vm_id)
         if sdn_zone_id is not None:
             await self.sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id=sdn_zone_id)
+
+    async def cleanup(self) -> None:
+        await self.qemu_commands.cleanup()
+        await self.sdn_commands.cleanup()
