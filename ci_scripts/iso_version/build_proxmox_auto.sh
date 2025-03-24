@@ -132,7 +132,7 @@ VM_ID=$1
 VM_ORIG=proxmox-auto
 VM_NEW="proxmox-clone-$VM_ID"
 VM_NEW_DISK="/var/lib/libvirt/images/$VM_NEW.qcow2"
-AISI_PROXMOX_EXPOSED_PORT=$(( 11000 + $VM_ID ))
+PROXMOX_EXPOSED_PORT=$(( 11000 + $VM_ID ))
 
 virt-clone --original "$VM_ORIG" \
                --name "$VM_NEW" \
@@ -147,15 +147,15 @@ sudo virt-sysprep -d "$VM_NEW" \
     --root-password "password:$root_password" \
     --operations "defaults,-ssh-hostkeys" \
 
-EDITOR="sed -i 's/hostfwd=tcp::[0-9]\+-:8006/hostfwd=tcp::$AISI_PROXMOX_EXPOSED_PORT-:8006/'" virsh edit "$VM_NEW"
+EDITOR="sed -i 's/hostfwd=tcp::[0-9]\+-:8006/hostfwd=tcp::$PROXMOX_EXPOSED_PORT-:8006/'" virsh edit "$VM_NEW"
 
 virsh autostart "$VM_NEW"
 virsh start "$VM_NEW"
 
-echo "Created VM $VM_NEW on port $AISI_PROXMOX_EXPOSED_PORT with root password $root_password"
+echo "Created VM $VM_NEW on port $PROXMOX_EXPOSED_PORT with root password $root_password"
 
 echo "PROXMOX_HOST=$(ec2-metadata  --local-ipv4 | cut -d ' ' -f 2)"
-echo "PROXMOX_PORT=$AISI_PROXMOX_EXPOSED_PORT"
+echo "PROXMOX_PORT=$PROXMOX_EXPOSED_PORT"
 echo "PROXMOX_USER=root"
 echo "PROXMOX_REALM=pam"
 echo "PROXMOX_PASSWORD=$root_password"

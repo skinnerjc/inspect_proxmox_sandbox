@@ -4,8 +4,6 @@
 
 This plugin for Inspect allows you to use virtual machines, running within a Proxmox instance, as sandboxes.
 
-Status: pre-alpha.
-
 ## Installing
 
 Add this using Poetry
@@ -22,15 +20,15 @@ uv add git+ssh://git@github.com/AI-Safety-Institute/inspect-vm-sandbox.git
 
 ## Requirements
 
-You must be in RPv2. You will need to get a Proxmox host, port, user, and password from the platform team.
+This plugin assumes you already have a Proxmox instance set up, and that you have admin access to it.
 
 Create a .env file with the following
 
 ```
-PROXMOX_HOST=[ip/domain of host]
-PROXMOX_PORT=[port]
+PROXMOX_HOST=[IP address or domain name of the host]
+PROXMOX_PORT=[port, e.g 8006]
 PROXMOX_USER=[user, usually 'root']
-PROXMOX_REALM=pam
+PROXMOX_REALM=[authentication realm, usually 'pam' unless you have configured custom auth]
 PROXMOX_PASSWORD=[password]
 PROXMOX_NODE=[node name, usually 'proxmox']
 ```
@@ -44,17 +42,20 @@ if there is only a single item in the tuple.
 
 Most tools use only the first sandbox, so you should list the one you want the agent to operate from first.
 
+Virtual machines must have the qemu-guest-agent installed, unless they are not sandboxes. 
+At least one VM in the configuration must be a sandbox.
+
 ```python
 sandbox=SandboxEnvironmentSpec(
     "proxmox",
     ProxmoxSandboxEnvironmentConfig(
         # These config items will be taken from environment variables, if not specified here
-        host="[hostname of proxmox server]",
-        port="[port e.g. 8006],
-        user="[username e.g. root, the proxmox default]",
-        password="[password]",
-        user_realm="[realm e.g. pam, the proxmox default]",
-        node="[node name, usually 'proxmox']",
+        host=[IP address or domain name of the host]
+        port=[port, e.g 8006]
+        user=[user, usually 'root']
+        user_realm=[authentication realm, 'pam' unless you have configured custom auth]
+        password=[password]
+        node=[node name, usually 'proxmox']
         # End config from environment
 
         vms_config=(
@@ -66,7 +67,20 @@ sandbox=SandboxEnvironmentSpec(
                 name="romeo", # name is optional, but recommended - it will be shown in the Proxmox GUI
                 ram_mb=512, # optional, default is 2048 MB
                 vcpus=4, # optional, default is 2. No attempt is made to check that this will fit in the Proxmox host.
-                uefi_boot=True # optional, default is False. Generally only needed for Windows VMs.
+                uefi_boot=True, # optional, default is False. Generally only needed for Windows VMs.
+                is_sandbox=False, # optional, default is True. A virtual machine that is not a sandbox; the qemu-guest-agent need not be installed.
+                # If you have more than one VNet, assign the VM to the VNet via nics.
+                # You can assign more than one, to give the VM more than one network interface.
+                # If you leave this blank, your VM will be assigned to the first VNet.
+                nics=(
+                    VmNicConfig(
+                        # This alias *must* match the alias in one of the VnetConfigs
+                        vnet_alias="my special vnet",
+                        # Specifying a MAC address is optional - only needed if you
+                        # are doing fancy things with DHCP in your eval
+                        mac="00:16:3d:1d:eb:a0"
+                    ),
+                )
             ),
             # A virtual machine from a local OVA, which will be uploaded from here to the Proxmox server.
             VmConfig(
@@ -91,26 +105,6 @@ sandbox=SandboxEnvironmentSpec(
                 vm_source_config=VmSourceConfig(
                     existing_backup_name="vzdump-qemu-[vm id]-[datestamp of backup].vma.zst"
                 ),
-            ),
-            # A virtual machine that exists in the eval sample, but is not a sandbox.
-            VmConfig(
-                # ... snip ...
-                is_sandbox = False
-            ),
-            # If you have more than one VNet, assign the VM to the VNet via nics.
-            # You can assign more than one, to give the VM more than one network interface.
-            # If you leave this blank, your VM will be assigned to the first VNet.
-            VmConfig(
-                # ... snip ...
-                nics=(
-                    VmNicConfig(
-                        # This alias *must* match the alias in one of the VnetConfigs
-                        vnet_alias="my special vnet",
-                        # Specifying a MAC address is optional - only needed if you
-                        # are doing fancy things with DHCP in your eval
-                        mac="00:16:3d:1d:eb:a0"
-                    ),
-                )
             ),
             # A virtual machine with no network access.
             VmConfig(
@@ -156,11 +150,11 @@ Proxmox's HTTP API will not let you upload a .zst backup file.
 
 Instead:
 
-1. Upload your zst backups to S3
-2. Connect to the web frontend (see section Observing the VMs)
-3. Open Datacenter -> Proxmox node -> Shell
-4. Paste in temporary AWS S3 credentials
-5. Download the zst backups into /var/lib/vz/dump
+1. Upload your zst backups to S3 or a web server.
+2. Connect to the web frontend (see section Observing the VMs).
+3. Open Datacenter -> Proxmox node -> Shell.
+4. (If using S3) Paste in temporary AWS S3 credentials.
+5. Download the zst backups into /var/lib/vz/dump using the AWS S3 CLI or wget.
 
 ![Demo of zst upload](docs/proxmox_shell.png "Getting a shell on Proxmox server")
 
@@ -188,7 +182,8 @@ including the running processes. See [snapshots.py](./src/proxmoxsandbox/experim
 ## Feature Roadmap
 
 - Proxmox server health and config check
-- Normalize having a second pfSense VM as the default route for networking
+- Demo evals
+- Normalize having a pfSense VM as the default route for networking
 - Firewall off the SDN from the Proxmox server and from other SDNs
 - Add more built-in VMs (Debian, Kali)
 - Support cloud-init for VM definition
