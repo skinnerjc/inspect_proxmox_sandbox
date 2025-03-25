@@ -4,8 +4,8 @@ from typing import Dict
 from inspect_ai.util import SandboxConnection, SandboxEnvironment
 from pytest import raises
 
-from .proxmox_sandbox_utils import setup_sandbox
-
+from proxmoxsandbox._impl.qemu_commands import QemuCommands
+from proxmoxsandbox._impl.sdn_commands import SdnCommands
 from proxmoxsandbox.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
 from proxmoxsandbox.schema import (
     DhcpRange,
@@ -17,6 +17,8 @@ from proxmoxsandbox.schema import (
     VmSourceConfig,
     VnetConfig,
 )
+
+from .proxmox_sandbox_utils import setup_sandbox
 
 CURRENT_DIR = Path(__file__).parent
 
@@ -233,3 +235,35 @@ async def test_connect(proxmox_sandbox_environment: ProxmoxSandboxEnvironment) -
     connection: SandboxConnection = await proxmox_sandbox_environment.connection()
     # we can't really do much more than this assertion; sandbox.connection needs to be tested manually
     assert "open 'http" in connection.command
+
+
+async def test_cli_cleanup(
+    qemu_commands: QemuCommands, sdn_commands: SdnCommands
+) -> None:
+    sandbox_env_config = ProxmoxSandboxEnvironmentConfig(
+        vms_config=(
+            VmConfig(
+                vm_source_config=VmSourceConfig(built_in="ubuntu24.04"),
+                name="test-cli-cleanup",
+            ),
+        )
+    )
+
+    existing_vms = await qemu_commands.list_vms()
+    existing_zones = await sdn_commands.list_sdn_zones()
+
+    await setup_sandbox("tcc", sandbox_env_config)
+
+    all_vms = await qemu_commands.list_vms()
+    all_zones = await sdn_commands.list_sdn_zones()
+
+    assert len(all_vms) == len(existing_vms) + 1
+    assert len(all_zones) == len(existing_zones) + 1
+
+    await ProxmoxSandboxEnvironment.cli_cleanup(id=None)
+
+    post_cleanup_vms = await qemu_commands.list_vms()
+    post_cleanup_zones = await sdn_commands.list_sdn_zones()
+
+    assert post_cleanup_vms == existing_vms
+    assert post_cleanup_zones == existing_zones

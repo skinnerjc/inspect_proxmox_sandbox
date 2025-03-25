@@ -34,12 +34,11 @@ class SdnCommands(abc.ABC):
     task_wrapper: TaskWrapper
 
     _created_sdns: ContextVar[Set[str]] = ContextVar(
-    "proxmox_created_sdns", default=set()
+        "proxmox_created_sdns", default=set()
     )
     _cleanup_completed: ContextVar[bool] = ContextVar(
         "proxmox_sdns_cleanup_executed", default=False
     )
-
 
     def __init__(self, async_proxmox: AsyncProxmoxAPI):
         self.async_proxmox = async_proxmox
@@ -266,12 +265,12 @@ class SdnCommands(abc.ABC):
     async def tear_down_sdn_zone_and_vnet(self, sdn_zone_id: str) -> None:
         await self.tear_down_sdn_zones_and_vnets([sdn_zone_id])
 
-    async def tear_down_sdn_zones_and_vnets(self, sdn_zone_ids: Collection[str]) -> None:
+    async def tear_down_sdn_zones_and_vnets(
+        self, sdn_zone_ids: Collection[str]
+    ) -> None:
         with trace_action(self.logger, self.TRACE_NAME, f"delete SDNs {sdn_zone_ids}"):
             for sdn_zone_id in sdn_zone_ids:
-                all_vnets = await self.async_proxmox.request(
-                    "GET", "/cluster/sdn/vnets"
-                )
+                all_vnets = await self.read_all_vnets()
                 relevant_vnets = list(
                     vnet for vnet in all_vnets if vnet["zone"] == sdn_zone_id
                 )
@@ -295,6 +294,9 @@ class SdnCommands(abc.ABC):
 
         await self.do_update_all_sdn()
 
+    async def read_all_vnets(self):
+        return await self.async_proxmox.request("GET", "/cluster/sdn/vnets")
+
     async def cleanup(self) -> None:
         if self._cleanup_completed.get():
             return
@@ -302,4 +304,3 @@ class SdnCommands(abc.ABC):
         with trace_action(self.logger, self.TRACE_NAME, "cleanup all SDNs"):
             await self.tear_down_sdn_zones_and_vnets(self._created_sdns.get())
             self._cleanup_completed.set(True)
-

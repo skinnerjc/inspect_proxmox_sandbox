@@ -275,7 +275,15 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
 
     @classmethod
     async def cli_cleanup(cls, id: str | None) -> None:
-        return None
+        if id is None:
+            config = ProxmoxSandboxEnvironmentConfig()
+            async_proxmox_api = cls.create_async_proxmox_api(config)
+            infra_commands = InfraCommands(
+                async_proxmox=async_proxmox_api, node=config.node
+            )
+            await infra_commands.cleanup_no_id()
+        else:
+            raise NotImplementedError("Cleanup by ID not implemented")
 
     @classmethod
     def config_deserialize(cls, config: dict[str, Any]) -> BaseModel:

@@ -131,7 +131,7 @@ class VmConfig(BaseModel, frozen=True):
     
     Attributes:
         vm_source_config: The source configuration for the VM
-        name: The name of the VM (optional)
+        name: The name of the VM (optional). Must be a valid DNS name.
         ram_mb: RAM allocation in megabytes (default: 2048)
         vcpus: Number of virtual CPUs (default: 2)
         nics: Network interface configurations (optional)

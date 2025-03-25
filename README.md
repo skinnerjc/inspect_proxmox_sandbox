@@ -64,7 +64,7 @@ sandbox=SandboxEnvironmentSpec(
                 vm_source_config=VmSourceConfig(
                     built_in="ubuntu24.04" # currently supported: "ubuntu24.04"; see schema.py
                 ),
-                name="romeo", # name is optional, but recommended - it will be shown in the Proxmox GUI
+                name="romeo", # name is optional, but recommended - it will be shown in the Proxmox GUI. Must be a valid DNS name.
                 ram_mb=512, # optional, default is 2048 MB
                 vcpus=4, # optional, default is 2. No attempt is made to check that this will fit in the Proxmox host.
                 uefi_boot=True, # optional, default is False. Generally only needed for Windows VMs.
@@ -232,7 +232,6 @@ Some resources will persist after the eval is complete:
 
 ## Tech debt
 
-- Does not work with Inspect's post-hoc CLI sandbox cleanup feature
 - Large OVA uploads use PycURL, because neither aiohttp nor httpx worked with large uploads
 
 ## Developing

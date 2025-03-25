@@ -1,6 +1,6 @@
 import abc
 from logging import getLogger
-from typing import Tuple
+from typing import List, Set, Tuple
 
 from inspect_ai.util import trace_action
 
@@ -75,6 +75,33 @@ class InfraCommands(abc.ABC):
         if sdn_zone_id is not None:
             await self.sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id=sdn_zone_id)
 
+    async def find_all_zones(self, vnet_ids: List[str]) -> Set[str]:
+        return set(
+            [
+                vnet["zone"]
+                for vnet in await self.sdn_commands.read_all_vnets()
+                if vnet["vnet"] in vnet_ids
+            ]
+        )
+
     async def cleanup(self) -> None:
         await self.qemu_commands.cleanup()
         await self.sdn_commands.cleanup()
+
+    async def cleanup_no_id(self) -> None:
+        noticed_vnets = []
+
+        for vm in await self.qemu_commands.list_vms():
+            if "inspect" in vm["tags"].split(";") and (
+                ("template" in vm and vm["template"] == 0) or ("template" not in vm)
+            ):
+                existing_vm = await self.qemu_commands.read_vm(vm["vmid"])
+                for key in existing_vm.keys():
+                    if key.startswith("net"):
+                        # 'virtio=BC:24:11:3E:C3:BA,bridge=tcc919v0'
+                        bridge = existing_vm[key].split(",")[1].split("=")[1]
+                        noticed_vnets.append(bridge)
+                await self.qemu_commands.destroy_vm(vm["vmid"])
+
+        zones_to_delete = await self.find_all_zones(noticed_vnets)
+        await self.sdn_commands.tear_down_sdn_zones_and_vnets(zones_to_delete)
