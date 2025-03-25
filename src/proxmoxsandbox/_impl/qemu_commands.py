@@ -456,8 +456,11 @@ class QemuCommands(abc.ABC):
             return
 
         with trace_action(self.logger, self.TRACE_NAME, "cleanup all VMs"):
-            for vm_id in self._running_proxmox_vms.get():
-                # TODO parallelize this
-                await self.destroy_vm(vm_id)
+            existing_vms = await self.list_vms()
+            for vm in existing_vms:
+                vm_id = vm["vmid"]
+                if vm_id in self._running_proxmox_vms.get():
+                    # TODO parallelize this
+                    await self.destroy_vm(vm_id)
             self._cleanup_completed.set(True)
 
