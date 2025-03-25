@@ -202,22 +202,4 @@ including the running processes. See [snapshots.py](./src/proxmoxsandbox/experim
 
 ## Developing
 
-To develop on this project, run this beforehand:
-
-```
-uv sync
-```
-
-You then can either source the venv with
-
-```
-source .bin/venv/activate
-```
-
-or prefix your pytest (etc.) commands with `uv run ...`
-
-Pre-commit, please check:
-
-```bash
-uv run mypy && uv run ruff check
-```
+See [CONTRIBUTING.md]

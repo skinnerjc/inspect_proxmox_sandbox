@@ -1,0 +1,37 @@
+# Getting started
+
+To develop on this project, run this beforehand:
+
+```
+uv sync
+```
+
+You then can either source the venv with
+
+```
+source .bin/venv/activate
+```
+
+or prefix your pytest (etc.) commands with `uv run ...`
+
+If you want to spin up a proxmox instance locally, you can use the script `ci_scripts/virtualized_proxmox/build_proxmox_auto.sh`.
+
+# Tests
+
+To run the tests, you will need a proxmox instance and an .env file per README.md.
+
+If running from the CLI, you'll need to run first `set -a; source .env; set +a`.
+
+Then run:
+
+```
+uv run pytest
+```
+
+# Quality checks
+
+Pre-commit, please check:
+
+```bash
+uv run mypy && uv run ruff check
+```

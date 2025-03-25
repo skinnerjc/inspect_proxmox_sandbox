@@ -191,7 +191,7 @@ class QemuCommands(abc.ABC):
                             "archive": f"/var/lib/vz/dump/{vm_config.vm_source_config.existing_backup_name}",
                         },
                     )
-                    self._running_proxmox_vms.get().add(new_vm_id)
+                    await self.register_created_vm(new_vm_id)
 
                 await self.task_wrapper.do_action_and_wait_for_tasks(create_from_backup)
                 await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
@@ -266,7 +266,7 @@ class QemuCommands(abc.ABC):
                         await self.async_proxmox.request(
                             "POST", f"/nodes/{self.node}/qemu", json=json_for_create
                         )
-                        self._running_proxmox_vms.get().add(new_vm_id)
+                        await self.register_created_vm(new_vm_id)
 
                     await self.task_wrapper.do_action_and_wait_for_tasks(create)
 
@@ -381,7 +381,7 @@ class QemuCommands(abc.ABC):
                 f"/nodes/{self.node}/qemu/{vm_id_to_clone}/clone",
                 json={"newid": new_vm_id, "full": 0, "name": vm_config.name},
             )
-            self._running_proxmox_vms.get().add(new_vm_id)
+            await self.register_created_vm(new_vm_id)
 
         await self.task_wrapper.do_action_and_wait_for_tasks(create_clone)
 
@@ -447,6 +447,10 @@ class QemuCommands(abc.ABC):
     async def connection_url(self, vm_id: int) -> str:
         return f"{self.async_proxmox.base_url}/?console=kvm&novnc=1&vmid={vm_id}&node={self.node}"
     
+    async def register_created_vm(self, vm_id: int | None) -> None:
+        if vm_id is not None:
+            self._running_proxmox_vms.get().add(vm_id)
+
     async def cleanup(self) -> None:
         if self._cleanup_completed.get():
             return

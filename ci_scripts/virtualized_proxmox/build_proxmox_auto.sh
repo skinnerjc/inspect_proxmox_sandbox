@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Monolithic script to install proxmox on a bare-metal EC2 instance.
-# It's all in one file so that you can run it with the --script option of aisi create-instance.
+# Monolithic script to install a virtualized proxmox instance.
+# It's all in one file so that you can run it in e.g. cloud-init.
+# Note for EC2 users: AWS does not support nested virtualization so you will
+# need a metal instance for this to work.
 #
 # What it does:
 # Using docker, builds a Proxmox auto-install ISO per https://pve.proxmox.com/wiki/Automated_Installation
@@ -92,7 +94,7 @@ RUN cd /iso && proxmox-auto-install-assistant prepare-iso /iso/proxmox.iso --fet
 # Set volume to access the ISO
 VOLUME /output
 
-# Default command to copy the ISO to the output volume (JSON form)
+# Default command to copy the ISO to the output volume
 CMD ["cp", "/iso/proxmox-auto-from-iso.iso", "/output/"]
 
 EOFDOCKER

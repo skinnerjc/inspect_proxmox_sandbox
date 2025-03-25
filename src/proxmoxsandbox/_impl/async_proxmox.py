@@ -83,7 +83,7 @@ class AsyncProxmoxAPI:
                 f"{self.api_base_url}{path}",
                 headers=headers,
                 json=json,
-                data=body_content,
+                content=body_content,
             )
             # If we get a 401, our ticket might have expired (2 hour lifetime)
             # Try to login once and retry the request
@@ -96,7 +96,7 @@ class AsyncProxmoxAPI:
                     f"{self.api_base_url}{path}",
                     headers=headers,
                     json=json,
-                    data=body_content,
+                    content=body_content,
                 )
 
             if response.is_error and raise_errors:

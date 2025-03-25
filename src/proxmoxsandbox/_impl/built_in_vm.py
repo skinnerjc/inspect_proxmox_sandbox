@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 from ipaddress import ip_address, ip_network
 from logging import getLogger
-from typing import Dict, get_args
+from typing import BinaryIO, Dict, cast, get_args
 
 import tenacity
 from inspect_ai.util import trace_action
@@ -122,7 +122,7 @@ runcmd:
 
         # Create a temporary file and write the ISO to it
         with tempfile.NamedTemporaryFile(delete=False, suffix='.iso') as temp_file:
-            iso.write_fp(temp_file)
+            iso.write_fp(cast(BinaryIO, temp_file))
             temp_file_path = Path(temp_file.name)
 
             try:   
