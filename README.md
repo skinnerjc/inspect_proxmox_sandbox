@@ -202,4 +202,4 @@ including the running processes. See [snapshots.py](./src/proxmoxsandbox/experim
 
 ## Developing
 
-See [CONTRIBUTING.md]
+See [CONTRIBUTING.md](CONTRIBUTING.md)
