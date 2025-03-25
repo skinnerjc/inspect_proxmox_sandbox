@@ -219,6 +219,10 @@ Some resources will persist after the eval is complete:
 - uploaded OVAs are left in place
 - cloud-init ISOs are left in place
 
+Environment cleanup is partially implemented. There is no way to tag all the resources
+created by a particular eval. Therefore the cleanup process for `inspect sandbox cleanup proxmox` 
+will delete all VMs tagged `inspect` and any SDN zones they were in.
+
 ## Feature Roadmap
 
 - Proxmox server health and config check
