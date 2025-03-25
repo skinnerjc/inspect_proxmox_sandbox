@@ -84,6 +84,7 @@ sandbox=SandboxEnvironmentSpec(
                 # extra_proxmox_native_config = dict() TODO
             ),
             # A virtual machine from a local OVA, which will be uploaded from here to the Proxmox server.
+            # Note, the OVA is not re-uploaded if it is changed locally, so must be manually deleted on the server in this case.
             VmConfig(
                 vm_source_config=VmSourceConfig(
                     ova=Path("./tests/oVirtTinyCore64-13.11.ova")
@@ -210,6 +211,13 @@ Every VM created by this sandbox provider is tagged `inspect`.
 (Tags will also be duplicated if they exist on a VM already, for `existing_backup_name`- and `existing_vm_template_tag`-type VMs)
 
 SDN zones have the pattern `[3 letters from eval task name][random 3 digits][z]`. VNets are similar and can be identified from their containing zone.
+
+Some resources will persist after the eval is complete:
+
+- the built-in VM feature creates a template VM `inspect-ubuntu24.04`
+- the built-in VM feature creates a SDN zone called `inspvmz`
+- uploaded OVAs are left in place
+- cloud-init ISOs are left in place
 
 ## Feature Roadmap
 
