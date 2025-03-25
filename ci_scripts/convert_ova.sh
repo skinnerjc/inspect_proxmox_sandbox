@@ -1,6 +1,6 @@
 #!/bin/bash
 # note: the uefi param doesn't actually work in proxmox, though it seems fine in VirtualBox
-# this script has a bunch of problems with idempotency TODO fix them
+# this script has problems with idempotency
 
 if [ -z "$1" ]; then
     echo "Usage: $0 <source_directory> [uefi]"

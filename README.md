@@ -159,6 +159,13 @@ Instead:
 
 ![Demo of zst upload](docs/proxmox_shell.png "Getting a shell on Proxmox server")
 
+## Using OVA files
+
+Proxmox supports OVA import but not OVA export. It is possible to extract
+ the disk images of VMs from a Proxmox server in qcow2 format (instructions for this can be found online).
+
+ Once you have the disk images locally, you can use the convenience script `ci_scripts/convert_ova.sh` to convert it into an OVA. Note, it assumes you have VirtualBox installed.
+
 ## Observing the VMs
 
 Note, if you are having problems, then setting Inspect's sandbox_cleanup=False will be helpful.
@@ -173,7 +180,21 @@ Then you can ssh as follows
 
 `ssh -L "localhost:8006:$PROXMOX_HOST:$PROXMOX_PORT" my-dev-vm`
 
-Then open the page https://locahost:8006, accept the certificate warning, and log in with the username and password from the .env flile
+Then open the page https://locahost:8006, accept the certificate warning, and log in with the username and password from the .env file
+
+### Logging in
+
+If you want to log into a sandbox VM, the Proxmox UI lets you open a console window, but you might not know the password.
+
+You can use the following command on the Proxmox server (open Datacenter -> Proxmox node -> Shell):
+
+```bash
+export PROXMOX_NODE=proxmox # change this if necessary
+export VM_ID=101 # change this to the correct VM ID
+export NEW_PASSWORD=Password2.0 # choose a password
+export VM_USERNAME=ubuntu # change as appropriate
+pvesh create "/nodes/$PROXMOX_NODE/qemu/$VM_ID/agent/exec" --command bash --command "-c" --command "echo $VM_USERNAME:$NEW_PASSWORD | chpasswd"
+```
 
 ## Snapshot
 
@@ -193,9 +214,7 @@ including the running processes. See [snapshots.py](./src/proxmoxsandbox/experim
 ## Tech debt
 
 - add escape hatch for proxmox API
-- pydocs instead of inline comments on fields etc
 - Does not work with Inspect's post-hoc CLI sandbox cleanup feature
-- instructions on how to change the password on an agent VM
 - Large OVA uploads use PycURL, because neither aiohttp nor httpx worked with large uploads
 
 ## Developing

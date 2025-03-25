@@ -69,7 +69,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         self.all_vm_ids = all_vm_ids
         self.sdn_zone_id = sdn_zone_id
 
-    # stolen from k8s sandbox
+    # originally from k8s sandbox
     def _pipe_user_input(self, stdin: str | bytes) -> str:
         # Encode the user-provided input as base64 for 2 reasons:
         # 1. To avoid issues with special characters (e.g. new lines) in the input.
@@ -83,7 +83,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         # stdin stream in v4.channel.k8s.io.
         return f"echo '{stdin_b64}' | base64 -d | "
 
-    # stolen from k8s sandbox
+    # originally from k8s sandbox
     def _prefix_timeout(self, timeout: int | None) -> str:
         if timeout is None:
             return ""
@@ -92,7 +92,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         # SIGTERM.
         return f"timeout -k 5s {timeout}s "
 
-    # stolen from k8s sandbox
+    # originally from k8s sandbox
     # TODO extract this to its own module and unit test it locally
     def _build_shell_script(
         self,

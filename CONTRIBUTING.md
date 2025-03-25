@@ -35,3 +35,16 @@ Pre-commit, please check:
 ```bash
 uv run mypy && uv run ruff check
 ```
+
+
+# Design Notes
+
+All communication with Proxmox is via the AsyncProxmoxAPI class.
+
+The URLs for each REST call tend to be inline in the part of the code making the call; 
+this is deliberate, to keep things simple and to avoid premature indirection. 
+
+
+![design](docs/provider.drawio.png "Design")
+
+The design of this provider is constrained by what is offered by the [Proxmox REST API](https://pve.proxmox.com/wiki/Proxmox_VE_API). For example, OVA is the only supported upload format. It would be useful to be able to upload qcow2 disk images, but this isn't supported.

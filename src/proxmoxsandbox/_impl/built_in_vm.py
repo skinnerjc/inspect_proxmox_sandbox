@@ -165,10 +165,7 @@ runcmd:
 
             existing_vms = await self.known_builtins()
             for existing_vm in existing_vms:
-                await self.async_proxmox.request(
-                    "DELETE",
-                    f"/nodes/{self.node}/qemu/{existing_vms[existing_vm]}",
-                )
+                await self.qemu_commands.destroy_vm(vm_id=existing_vms[existing_vm])
 
         await self.task_wrapper.do_action_and_wait_for_tasks(inner_clear_builtins)
 
