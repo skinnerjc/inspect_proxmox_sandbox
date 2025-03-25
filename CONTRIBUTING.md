@@ -14,7 +14,12 @@ source .bin/venv/activate
 
 or prefix your pytest (etc.) commands with `uv run ...`
 
-If you want to spin up a proxmox instance locally, you can use the script `ci_scripts/virtualized_proxmox/build_proxmox_auto.sh`.
+# Local Proxmox
+
+If you want to spin up a Proxmox instance locally, you can use the script `ci_scripts/virtualized_proxmox/build_proxmox_auto.sh`.
+It has been tested on Ubuntu 24.04.
+
+It will handle the extra configuration mentioned in this project's README.
 
 # Tests
 

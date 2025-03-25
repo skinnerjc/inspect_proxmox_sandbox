@@ -33,6 +33,17 @@ PROXMOX_PASSWORD=[password]
 PROXMOX_NODE=[node name, usually 'proxmox']
 ```
 
+Your proxmox instance must allow additional storage types from the default.
+You can run this on your Proxmox node to configure them:
+
+```bash
+pvesh set /storage/local -content iso,vztmpl,backup,snippets,images,rootdir,import
+```
+
+SDN requires you to configure dnsmasq, see the [Proxmox SDN documentation](https://pve.proxmox.com/pve-docs/chapter-pvesdn.html#pvesdn_install_dhcp_ipam). Note, the commands on that page must be run on the Proxmox node, not your local machine.
+
+For details on how to set up a local Proxmox instance for testing, see [CONTRIBUTING.md](CONTRIBUTING.md#local-proxmox)
+
 ## Configuring
 
 Here is a full example sandbox configuration. 
