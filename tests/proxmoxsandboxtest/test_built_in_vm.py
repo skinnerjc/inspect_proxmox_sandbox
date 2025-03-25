@@ -22,4 +22,7 @@ async def test_ubuntu(qemu_commands: QemuCommands, built_in_vm: BuiltInVM) -> No
     new_vms = [vm for vm in all_vms if vm["vmid"] not in existing_vm_ids]
     assert len(new_vms) == 1
     assert new_vms[0]["template"] == 1
-    assert new_vms[0]["tags"] == "inspect-ubuntu24.04"
+    assert new_vms[0]["tags"]
+    tags = new_vms[0]["tags"].split(";")
+    assert "inspect" in tags
+    assert "builtin-ubuntu24.04" in tags

@@ -42,9 +42,10 @@ async def test_simple_vm_non_sandbox(
     assert new_vm["cores"] == 3
     assert new_vm["agent"] == "enabled=0"
     assert "net0" in new_vm
+    assert "inspect" in new_vm["tags"]
+    assert "ubuntu24.04" not in new_vm["tags"]
 
     await qemu_commands.destroy_vm(new_vm_id)
-    # new_vm = {'tags': 'inspect-ubuntu24.04', 'cpu': 'host', 'ide2': 'none,media=cdrom', 'digest': '1b06374b6cfb9b411e0216fbb8f1509e9c237a9a', 'cores': 2, 'name': 'Copy-of-VM-inspect-ubuntu24.04', 'memory': '2048', 'meta': 'creation-qemu=9.0.2,ctime=1742225637', 'net0': 'virtio=BC:24:11:57:75:05,bridge=inspvmv0', 'agent': 'enabled=1', 'boot': 'order=scsi0;net0;ide2', 'ostype': 'l26', 'smbios1': 'uuid=a3700e1c-4a46-417c-bdc8-3f4b33495b10', 'scsi0': 'local-lvm:vm-102-disk-0,cache=writeback,size=10G', 'scsihw': 'virtio-scsi-single', 'vmgenid': 'ce6dc26c-e973-4a98-8d7b-226b3b374a03'}
 
 
 async def test_none_nic_from_template_tag(
@@ -58,7 +59,7 @@ async def test_none_nic_from_template_tag(
         sdn_vnet_aliases=auto_sdn_vnet_aliases,
         vm_config=VmConfig(
             vm_source_config=VmSourceConfig(
-                existing_vm_template_tag="inspect-ubuntu24.04"
+                existing_vm_template_tag="builtin-ubuntu24.04"
             ),  # coupling ourselves to the implementation of built_in_vm, naughty
             nics=None,
         ),
@@ -68,6 +69,8 @@ async def test_none_nic_from_template_tag(
     new_vm = await qemu_commands.read_vm(new_vm_id)
     assert "net0" in new_vm
     assert BuiltInVM.STATIC_SDN_START in new_vm["net0"]
+    assert "inspect" in new_vm["tags"]
+    assert "builtin-ubuntu24.04" in new_vm["tags"]
 
     await qemu_commands.destroy_vm(new_vm_id)
 
@@ -83,7 +86,7 @@ async def test_empty_nic_from_template_tag(
         sdn_vnet_aliases=auto_sdn_vnet_aliases,
         vm_config=VmConfig(
             vm_source_config=VmSourceConfig(
-                existing_vm_template_tag="inspect-ubuntu24.04"
+                existing_vm_template_tag="builtin-ubuntu24.04"
             ),
             nics=(),
         ),
@@ -207,6 +210,9 @@ async def test_from_ova_local(qemu_commands: QemuCommands):
 
     await qemu_commands.ping_qemu_agent(new_vm_id)
 
+    new_vm = await qemu_commands.read_vm(new_vm_id)
+    assert "inspect" in new_vm["tags"]
+
     await qemu_commands.destroy_vm(new_vm_id)
 
 
@@ -318,6 +324,7 @@ async def test_restore_from_backup(
     assert "net1" in new_vm
     assert vnet_aliases[1][0] in new_vm["net1"]
     assert vnet_aliases[1][1] == "vnetD"
+    assert "inspect" in new_vm["tags"]
 
     await qemu_commands.destroy_vm(new_vm_id)
     await qemu_commands.destroy_vm(vm_id_for_backup_source)

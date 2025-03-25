@@ -3,7 +3,7 @@ import tarfile
 from contextvars import ContextVar
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Dict, Set
+from typing import Any, Dict, List, Set
 
 import tenacity
 from inspect_ai.util import trace_action
@@ -194,7 +194,9 @@ class QemuCommands(abc.ABC):
                     await self.register_created_vm(new_vm_id)
 
                 await self.task_wrapper.do_action_and_wait_for_tasks(create_from_backup)
-                await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
+                await self.configure_network_and_tags(
+                    vm_config, sdn_vnet_aliases, new_vm_id, extra_tags=[]
+                )
 
             await self.start_and_await(
                 vm_id=new_vm_id,
@@ -212,7 +214,7 @@ class QemuCommands(abc.ABC):
                 # TODO: check "Import" is enabled for local storage
 
                 new_vm_id = await self.clone_vm_and_start(
-                    vm_config, vm_id_to_clone, sdn_vnet_aliases
+                    vm_config, vm_id_to_clone, sdn_vnet_aliases, False
                 )
             else:
                 raise NotImplementedError(
@@ -270,7 +272,9 @@ class QemuCommands(abc.ABC):
 
                     await self.task_wrapper.do_action_and_wait_for_tasks(create)
 
-                await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
+                await self.configure_network_and_tags(
+                    vm_config, sdn_vnet_aliases, new_vm_id
+                )
 
                 await self.start_and_await(
                     vm_id=new_vm_id,
@@ -287,11 +291,12 @@ class QemuCommands(abc.ABC):
 
             for existing_vm in existing_vms:
                 if (
-                    "tags" in existing_vm
-                    and existing_vm["tags"]
-                    == vm_config.vm_source_config.existing_vm_template_tag
-                    and "template" in existing_vm
+                    "template" in existing_vm
                     and existing_vm["template"] == 1
+                    and "tags" in existing_vm
+                    and "inspect" in existing_vm["tags"].split(";")
+                    and vm_config.vm_source_config.existing_vm_template_tag
+                    in existing_vm["tags"].split(";")
                 ):
                     found_vm.append(existing_vm)
                     break
@@ -309,7 +314,7 @@ class QemuCommands(abc.ABC):
             vm_id_to_clone = found_vm[0]["vmid"]
 
             new_vm_id = await self.clone_vm_and_start(
-                vm_config, vm_id_to_clone, sdn_vnet_aliases
+                vm_config, vm_id_to_clone, sdn_vnet_aliases, True
             )
 
         else:
@@ -329,11 +334,12 @@ class QemuCommands(abc.ABC):
                     content_type="application/x-www-form-urlencoded",
                 )
 
-    async def configure_network(
+    async def configure_network_and_tags(
         self,
         vm_config: VmConfig,
         sdn_vnet_aliases: VnetAliases,
         vm_id: int,
+        extra_tags: List[str] = [],
     ) -> None:
         async def update_network() -> None:
             network_update_json: ProxmoxJsonDataType = {}
@@ -365,13 +371,22 @@ class QemuCommands(abc.ABC):
                     json=network_update_json,
                 )
 
+        async def update_tags() -> None:
+            await self.async_proxmox.request(
+                "POST",
+                f"/nodes/{self.node}/qemu/{vm_id}/config",
+                json={"tags": ",".join(set(extra_tags + ["inspect"]))},
+            )
+
         await self.task_wrapper.do_action_and_wait_for_tasks(update_network)
+        await self.task_wrapper.do_action_and_wait_for_tasks(update_tags)
 
     async def clone_vm_and_start(
         self,
         vm_config: VmConfig,
         vm_id_to_clone: int,
         sdn_vnet_aliases: VnetAliases,
+        preserve_tags: bool,
     ) -> int:
         new_vm_id = await self.find_next_available_vm_id()
 
@@ -385,7 +400,15 @@ class QemuCommands(abc.ABC):
 
         await self.task_wrapper.do_action_and_wait_for_tasks(create_clone)
 
-        await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
+        extra_tags = []
+        if preserve_tags:
+            existing_config = await self.read_vm(vm_id_to_clone)
+            if "tags" in existing_config:
+                extra_tags += existing_config["tags"].split(";")
+
+        await self.configure_network_and_tags(
+            vm_config, sdn_vnet_aliases, new_vm_id, extra_tags=extra_tags
+        )
 
         other_update_json: ProxmoxJsonDataType = {}
         self.other_config_json(vm_config, other_update_json)
@@ -446,7 +469,7 @@ class QemuCommands(abc.ABC):
 
     async def connection_url(self, vm_id: int) -> str:
         return f"{self.async_proxmox.base_url}/?console=kvm&novnc=1&vmid={vm_id}&node={self.node}"
-    
+
     async def register_created_vm(self, vm_id: int | None) -> None:
         if vm_id is not None:
             self._running_proxmox_vms.get().add(vm_id)
@@ -463,4 +486,3 @@ class QemuCommands(abc.ABC):
                     # TODO parallelize this
                     await self.destroy_vm(vm_id)
             self._cleanup_completed.set(True)
-

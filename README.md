@@ -204,6 +204,13 @@ pvesh create "/nodes/$PROXMOX_NODE/qemu/$VM_ID/agent/exec" --command bash --comm
 QEMU, the virtualization library used by Proxmox, allows you to snapshot a running virtual machine, 
 including the running processes. See [snapshots.py](./src/proxmoxsandbox/experimental/snapshots.py) for example tools that use this.
 
+## Identifying created resources
+
+Every VM created by this sandbox provider is tagged `inspect`. 
+(Tags will also be duplicated if they exist on a VM already, for `existing_backup_name`- and `existing_vm_template_tag`-type VMs)
+
+SDN zones have the pattern `[3 letters from eval task name][random 3 digits][z]`. VNets are similar and can be identified from their containing zone.
+
 ## Feature Roadmap
 
 - Proxmox server health and config check

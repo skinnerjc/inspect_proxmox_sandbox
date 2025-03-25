@@ -5,9 +5,9 @@ import pytest
 
 
 # not actually a test; just a convenience for tearing down leftover stuff when testing
-@pytest.mark.skip
+# @pytest.mark.skip
 async def test_teardown(async_proxmox_api: AsyncProxmoxAPI, node: str) -> None:
-    test_zone_starts = ["san", "hel", "try", "tes", "ctf", "san", "kal", "tco", "cts"]
+    test_zone_starts = ["san", "hel", "try", "tes", "ctf", "san", "kal", "tco", "cts", "ta1","fro", "tas"]
     infra_commands = InfraCommands(async_proxmox=async_proxmox_api, node=node)
 
     zone_ids_to_delete = []

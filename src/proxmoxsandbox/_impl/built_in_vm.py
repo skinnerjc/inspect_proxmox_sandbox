@@ -1,9 +1,9 @@
 import abc
 import os
-from pathlib import Path
 import tempfile
 from ipaddress import ip_address, ip_network
 from logging import getLogger
+from pathlib import Path
 from typing import BinaryIO, Dict, cast, get_args
 
 import tenacity
@@ -121,15 +121,18 @@ runcmd:
                 )
 
         # Create a temporary file and write the ISO to it
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.iso') as temp_file:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".iso") as temp_file:
             iso.write_fp(cast(BinaryIO, temp_file))
             temp_file_path = Path(temp_file.name)
 
-            try:   
+            try:
                 filename = f"vm-{vm_id}-cl00udinit.iso"
 
                 await self.storage_commands.upload_file_to_storage(
-                    file=temp_file_path, content_type="iso", overwrite=True, filename=filename
+                    file=temp_file_path,
+                    content_type="iso",
+                    overwrite=True,
+                    filename=filename,
                 )
 
             finally:
@@ -180,9 +183,10 @@ runcmd:
             for existing_vm in existing_vms:
                 if (
                     "tags" in existing_vm
-                    and existing_vm["tags"] == f"inspect-{existing_vm_name}"
                     and "template" in existing_vm
                     and existing_vm["template"] == 1
+                    and "inspect" in existing_vm["tags"].split(";")
+                    and f"builtin-{existing_vm_name}" in existing_vm["tags"].split(";")
                 ):
                     found_builtins[existing_vm_name] = existing_vm["vmid"]
                     break
@@ -339,7 +343,7 @@ runcmd:
                     "POST",
                     f"/nodes/{self.node}/qemu/{next_available_vm_id}/config",
                     json={
-                        "tags": f"inspect-{built_in}",
+                        "tags": f"inspect,builtin-{built_in}",
                     },
                 )
 
