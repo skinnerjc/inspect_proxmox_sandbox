@@ -210,10 +210,10 @@ including the running processes. See [snapshots.py](./src/proxmoxsandbox/experim
 - Add more built-in VMs (Debian, Kali)
 - Support cloud-init for VM definition
 - Cache VM definition as tagged template VMs
+- Escape hatch for Proxmox API so you can specify arbitrary parameters during VM / SDN creation 
 
 ## Tech debt
 
-- add escape hatch for proxmox API
 - Does not work with Inspect's post-hoc CLI sandbox cleanup feature
 - Large OVA uploads use PycURL, because neither aiohttp nor httpx worked with large uploads
 
