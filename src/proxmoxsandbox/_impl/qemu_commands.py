@@ -1,8 +1,9 @@
 import abc
 import tarfile
+from contextvars import ContextVar
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Set
 
 import tenacity
 from inspect_ai.util import trace_action
@@ -28,6 +29,13 @@ class QemuCommands(abc.ABC):
     storage: str  # TODO disambiguate that this is for images rather than VM disks which continue to live in local-lvm
     storage_commands: StorageCommands
     node: str
+
+    _running_proxmox_vms: ContextVar[Set[int]] = ContextVar(
+        "proxmox_running_vms", default=set()
+    )
+    _cleanup_completed: ContextVar[bool] = ContextVar(
+        "proxmox_vms_cleanup_executed", default=False
+    )
 
     def __init__(self, async_proxmox: AsyncProxmoxAPI, node: str):
         self.async_proxmox = async_proxmox
@@ -183,6 +191,7 @@ class QemuCommands(abc.ABC):
                             "archive": f"/var/lib/vz/dump/{vm_config.vm_source_config.existing_backup_name}",
                         },
                     )
+                    self._running_proxmox_vms.get().add(new_vm_id)
 
                 await self.task_wrapper.do_action_and_wait_for_tasks(create_from_backup)
                 await self.configure_network(vm_config, sdn_vnet_aliases, new_vm_id)
@@ -257,6 +266,7 @@ class QemuCommands(abc.ABC):
                         await self.async_proxmox.request(
                             "POST", f"/nodes/{self.node}/qemu", json=json_for_create
                         )
+                        self._running_proxmox_vms.get().add(new_vm_id)
 
                     await self.task_wrapper.do_action_and_wait_for_tasks(create)
 
@@ -371,6 +381,7 @@ class QemuCommands(abc.ABC):
                 f"/nodes/{self.node}/qemu/{vm_id_to_clone}/clone",
                 json={"newid": new_vm_id, "full": 0, "name": vm_config.name},
             )
+            self._running_proxmox_vms.get().add(new_vm_id)
 
         await self.task_wrapper.do_action_and_wait_for_tasks(create_clone)
 
@@ -435,3 +446,14 @@ class QemuCommands(abc.ABC):
 
     async def connection_url(self, vm_id: int) -> str:
         return f"{self.async_proxmox.base_url}/?console=kvm&novnc=1&vmid={vm_id}&node={self.node}"
+    
+    async def cleanup(self) -> None:
+        if self._cleanup_completed.get():
+            return
+
+        with trace_action(self.logger, self.TRACE_NAME, "cleanup all VMs"):
+            for vm_id in self._running_proxmox_vms.get():
+                # TODO parallelize this
+                await self.destroy_vm(vm_id)
+            self._cleanup_completed.set(True)
+
