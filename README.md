@@ -161,14 +161,17 @@ Instead:
 
 ## Using OVA files
 
-Proxmox supports OVA import but not OVA export. It is possible to extract
- the disk images of VMs from a Proxmox server in qcow2 format (instructions for this can be found online).
+Proxmox supports OVA import but not OVA export. It is possible to extract the disk images of VMs 
+from a Proxmox server in qcow2 format (instructions for this can be found online).
 
- Once you have the disk images locally, you can use the convenience script `ci_scripts/convert_ova.sh` to convert it into an OVA. Note, it assumes you have VirtualBox installed.
+Once you have the disk images locally, you can use the convenience script `ci_scripts/convert_ova.sh` 
+to convert it into an OVA. Note, it assumes you have VirtualBox installed.
 
 ## Observing the VMs
 
 Note, if you are having problems, then setting Inspect's sandbox_cleanup=False will be helpful.
+
+### AISI-specific instructions
 
 To access the Proxmox UI, at the moment you need to forward the port as follows.
 
