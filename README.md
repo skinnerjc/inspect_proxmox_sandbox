@@ -192,8 +192,6 @@ including the running processes. See [snapshots.py](./src/proxmoxsandbox/experim
 
 ## Tech debt
 
-- instructions on how to run tests
-- validate there is at least one sandbox
 - add escape hatch for proxmox API
 - pydocs instead of inline comments on fields etc
 - Does not work with Inspect's post-hoc CLI sandbox cleanup feature
