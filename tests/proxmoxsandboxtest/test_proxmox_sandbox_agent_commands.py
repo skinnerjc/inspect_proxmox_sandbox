@@ -1,10 +1,13 @@
+import hashlib
 import subprocess
+from pathlib import Path
 from typing import List
 
 from inspect_ai.util._sandbox.self_check import self_check
-from .proxmox_sandbox_utils import setup_requests_logging
 
 from proxmoxsandbox.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
+
+from .proxmox_sandbox_utils import setup_requests_logging
 
 
 async def test_exec_10mb_limit(
@@ -23,6 +26,31 @@ async def test_exec_10mb_limit(
     exec_result = await proxmox_sandbox_environment.exec(exec_string, timeout=60)
     assert len(exec_result.stdout) == len(expected)
     assert exec_result.stdout == expected
+
+
+CURRENT_DIR = Path(__file__).parent
+
+
+async def test_write_file_large(
+    proxmox_sandbox_environment: ProxmoxSandboxEnvironment,
+) -> None:
+    with open(CURRENT_DIR / ".." / "oVirtTinyCore64-13.11.ova", "rb") as ova:
+        file_contents = ova.read()
+        # calculate md5sum of the file
+        md5 = hashlib.md5()
+        md5.update(file_contents)
+        expected_md5 = md5.hexdigest()
+        assert expected_md5 == "b6059a0fec3d0e431531abeabff212fe"
+        await proxmox_sandbox_environment.write_file(
+            "oVirtTinyCore64-13.11.ova", file_contents
+        )
+    exec_result = await proxmox_sandbox_environment.exec(
+        ["md5sum", "oVirtTinyCore64-13.11.ova"]
+    )
+    assert (
+        exec_result.stdout
+        == "b6059a0fec3d0e431531abeabff212fe  oVirtTinyCore64-13.11.ova\n"
+    )
 
 
 async def test_self_check(

@@ -474,6 +474,9 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             contents[i : i + CHUNK_SIZE] for i in range(0, len(contents), CHUNK_SIZE)
         ]
 
+        # Calculate padding width based on number of chunks
+        padding_width = len(str(len(chunks) - 1))
+
         tmp_start = f"/tmp/{__name__}_write_file_{time.time_ns()}_"
 
         # Create temporary directory path
@@ -482,15 +485,20 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             # Create temp directory
             await self.exec(cmd=["mkdir", "-p", "--", temp_dir])
 
-            # Write chunks to temp files
+            # Write chunks to temp files with zero-padded numbers
             for i, chunk in enumerate(chunks):
-                chunk_file = f"{temp_dir}/chunk_{i}"
+                chunk_file = f"{temp_dir}/chunk_{i:0{padding_width}d}"
                 await self._write_file_only(chunk_file, chunk)
 
-            # Combine chunks
-            chunk_pattern = f"{temp_dir}/chunk_*"
-            chunks_cat = f"cat {chunk_pattern} > {file}"
-            await self.exec(cmd=["sh", "-c", chunks_cat])
+            combine_script = (
+                f"rm -f {file}\n"
+                f'for i in $(seq -f "%0{padding_width}.0f" 0 {len(chunks) - 1}); do\n'
+                f'  cat "{temp_dir}/chunk_$i" >> {file}\n'
+                f"done\n"
+            )
+            combine_script_path = f"{temp_dir}/combine.sh"
+            await self._write_file_only(combine_script_path, combine_script)
+            await self.exec(cmd=["sh", combine_script_path])
 
         finally:
             # Clean up temporary files
