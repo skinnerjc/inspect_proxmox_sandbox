@@ -92,8 +92,12 @@ class InfraCommands(abc.ABC):
         noticed_vnets = []
 
         for vm in await self.qemu_commands.list_vms():
-            if "inspect" in vm["tags"].split(";") and (
-                ("template" in vm and vm["template"] == 0) or ("template" not in vm)
+            if (
+                "tags" in vm
+                and "inspect" in vm["tags"].split(";")
+                and (
+                    ("template" in vm and vm["template"] == 0) or ("template" not in vm)
+                )
             ):
                 existing_vm = await self.qemu_commands.read_vm(vm["vmid"])
                 for key in existing_vm.keys():
