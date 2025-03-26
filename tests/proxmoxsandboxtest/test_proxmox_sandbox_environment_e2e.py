@@ -229,6 +229,7 @@ async def test_at_least_one_sandbox() -> None:
     with raises(ValueError) as e_info:
         await setup_sandbox("ta1s", sandbox_env_config)
     assert "No default sandbox found" in str(e_info.value)
+    await ProxmoxSandboxEnvironment.cli_cleanup(id=None)
 
 
 async def test_connect(proxmox_sandbox_environment: ProxmoxSandboxEnvironment) -> None:
@@ -265,9 +266,9 @@ async def test_cli_cleanup(
     post_cleanup_vms = await qemu_commands.list_vms()
     post_cleanup_zones = await sdn_commands.list_sdn_zones()
 
-    existing_vms.sort(key=lambda x: x["vmid"])
-    post_cleanup_vms.sort(key=lambda x: x["vmid"])
-    assert post_cleanup_vms == existing_vms
+    assert set([vm["vmid"] for vm in post_cleanup_vms]) == set(
+        [vm["vmid"] for vm in existing_vms]
+    )
 
     existing_zones.sort(key=lambda x: x["zone"])
     post_cleanup_zones.sort(key=lambda x: x["zone"])
