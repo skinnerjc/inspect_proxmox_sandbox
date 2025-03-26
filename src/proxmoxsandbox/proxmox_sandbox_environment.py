@@ -225,7 +225,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             host=f"{config.host}:{config.port}",
             user=f"{config.user}@{config.user_realm}",
             password=config.password,
-            verify_ssl=False,
+            verify_tls=config.verify_tls,
         )
 
     @classmethod

@@ -1,4 +1,4 @@
-import os
+from os import getenv
 from pathlib import Path
 from typing import Annotated, Literal, Optional, Tuple, TypeAlias, Union
 
@@ -155,8 +155,6 @@ class VmConfig(BaseModel, frozen=True):
     uefi_boot: bool = False
 
 
-def get_env(env_var: str) -> str:
-    return os.environ[env_var]
 
 
 class ProxmoxSandboxEnvironmentConfig(BaseModel, frozen=True):
@@ -170,18 +168,20 @@ class ProxmoxSandboxEnvironmentConfig(BaseModel, frozen=True):
         user_realm: The authentication realm for the Proxmox user, 'pam' unless you have configured custom auth
         password: The password for Proxmox authentication
         node: The name of the Proxmox node, usually 'proxmox'
+        verify_tls: Whether to verify the Proxmox server's TLS certificate. 1 = verify, 0 = do not verify
         sdn_config: Software-defined networking configuration
             "auto": Create a simple SDN with a single subnet. The IP addresses will not be predictable as it depends on what subnets already exist.
             None: no SDN will be created and the VMs will not be able to have any network interfaces.
             SdnConfig: Custom SDN configuration
         vms_config: Configurations for virtual machines
     """
-    host: str = Field(default_factory=lambda: get_env("PROXMOX_HOST"))
-    port: int = Field(default_factory=lambda: int(get_env("PROXMOX_PORT")))
-    user: str = Field(default_factory=lambda: get_env("PROXMOX_USER"))
-    user_realm: str = Field(default_factory=lambda: get_env("PROXMOX_REALM"))
-    password: str = Field(default_factory=lambda: get_env("PROXMOX_PASSWORD"))
-    node: str = Field(default_factory=lambda: get_env("PROXMOX_NODE"))
+    host: str = Field(default_factory=lambda: getenv("PROXMOX_HOST", "localhost"))
+    port: int = Field(default_factory=lambda: int(getenv("PROXMOX_PORT", "8006")))
+    user: str = Field(default_factory=lambda: getenv("PROXMOX_USER", "root"))
+    user_realm: str = Field(default_factory=lambda: getenv("PROXMOX_REALM", "pam"))
+    password: str = Field(default_factory=lambda: getenv("PROXMOX_PASSWORD", "password"))
+    node: str = Field(default_factory=lambda: getenv("PROXMOX_NODE", "proxmox"))
+    verify_tls: bool = Field(default_factory=lambda: getenv("PROXMOX_VERIFY_TLS", "1") == "1")
 
     sdn_config: SdnConfigType = "auto"
     vms_config: Tuple[VmConfig, ...] = (

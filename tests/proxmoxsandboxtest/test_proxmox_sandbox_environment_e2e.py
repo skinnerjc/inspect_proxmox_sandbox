@@ -265,5 +265,10 @@ async def test_cli_cleanup(
     post_cleanup_vms = await qemu_commands.list_vms()
     post_cleanup_zones = await sdn_commands.list_sdn_zones()
 
+    existing_vms.sort(key=lambda x: x["vmid"])
+    post_cleanup_vms.sort(key=lambda x: x["vmid"])
     assert post_cleanup_vms == existing_vms
+
+    existing_zones.sort(key=lambda x: x["zone"])
+    post_cleanup_zones.sort(key=lambda x: x["zone"])
     assert post_cleanup_zones == existing_zones

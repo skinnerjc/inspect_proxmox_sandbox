@@ -162,5 +162,6 @@ echo "PROXMOX_USER=root"
 echo "PROXMOX_REALM=pam"
 echo "PROXMOX_PASSWORD=$root_password"
 echo "PROXMOX_NODE=proxmox"
+echo "PROXMOX_VERIFY_TLS=0"
 EOFVEND
 chmod +x ./vend.sh

@@ -26,20 +26,20 @@ class AsyncProxmoxAPI:
     api_base_url: str
     username: str
     password: str
-    verify_ssl: bool
+    verify_tls: bool
     ticket: Optional[str] = None
     csrf_token: Optional[str] = None
 
     # note: host *includes* :port
-    def __init__(self, host: str, user: str, password: str, verify_ssl: bool = True):
+    def __init__(self, host: str, user: str, password: str, verify_tls: bool = True):
         self.base_url = f"https://{host}"
         self.api_base_url = f"{self.base_url}/api2/json"
         self.username = user
         self.password = password
-        self.verify_ssl = verify_ssl
+        self.verify_tls = verify_tls
 
     def __hash__(self):
-        return hash((self.api_base_url, self.username, self.password, self.verify_ssl))
+        return hash((self.api_base_url, self.username, self.password, self.verify_tls))
 
     async def _login(self, client: httpx.AsyncClient):
         """Get new authentication ticket and CSRF token."""
@@ -66,7 +66,7 @@ class AsyncProxmoxAPI:
         if json is not None:
             content_type = "application/json"
         async with httpx.AsyncClient(
-            verify=self.verify_ssl,
+            verify=self.verify_tls,
             timeout=httpx.Timeout(connect=5, read=60, write=60, pool=60),
         ) as client:
             # Always get a fresh ticket if we don't have one
@@ -152,7 +152,7 @@ class AsyncProxmoxAPI:
         path = f"/nodes/{node}/qemu/{vm_id}/agent/file-read"
 
         async with httpx.AsyncClient(
-            verify=self.verify_ssl,
+            verify=self.verify_tls,
             timeout=httpx.Timeout(connect=5, read=60, write=60, pool=60),
         ) as client:
             # ping to refresh token if needed, so we don't have to do it in the stream
@@ -227,21 +227,17 @@ class AsyncProxmoxAPI:
             if not file.exists():
                 raise FileNotFoundError(f"File not found: {file}")
 
-            # Use provided filename or the original filename
             actual_filename = filename or file.name
 
-            # Set up the curl object
             curl = pycurl.Curl()
             response_buffer = BytesIO()
 
-            # Set basic curl options
             curl.setopt(
                 pycurl.URL, f"{self.api_base_url}/nodes/{node}/storage/{storage}/upload"
             )
             curl.setopt(pycurl.WRITEDATA, response_buffer)
 
-            # Set SSL verification options
-            if not self.verify_ssl:
+            if not self.verify_tls:
                 curl.setopt(pycurl.SSL_VERIFYPEER, 0)
                 curl.setopt(pycurl.SSL_VERIFYHOST, 0)
 
@@ -252,7 +248,6 @@ class AsyncProxmoxAPI:
             ]
             curl.setopt(pycurl.HTTPHEADER, headers)
 
-            # Set up the form data
             curl.setopt(
                 pycurl.HTTPPOST,
                 [
@@ -269,14 +264,10 @@ class AsyncProxmoxAPI:
                 ],
             )
 
-            # Execute the request
             curl.perform()
-
-            # Get response code and data
             status_code = curl.getinfo(pycurl.RESPONSE_CODE)
             curl.close()
 
-            # Get response data
             response_data = response_buffer.getvalue().decode("utf-8")
             response_json = json.loads(response_data)
 

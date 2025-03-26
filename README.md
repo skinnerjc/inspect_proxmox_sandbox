@@ -31,6 +31,7 @@ PROXMOX_USER=[user, usually 'root']
 PROXMOX_REALM=[authentication realm, usually 'pam' unless you have configured custom auth]
 PROXMOX_PASSWORD=[password]
 PROXMOX_NODE=[node name, usually 'proxmox']
+PROXMOX_VERIFY_TLS=[1 = verify, 0 = do not verify]
 ```
 
 Your proxmox instance must allow additional storage types from the default.
@@ -67,6 +68,7 @@ sandbox=SandboxEnvironmentSpec(
         user_realm=[authentication realm, 'pam' unless you have configured custom auth]
         password=[password]
         node=[node name, usually 'proxmox']
+        verify_tls=[True: verify, False: do not verify]
         # End config from environment
 
         vms_config=(

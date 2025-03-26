@@ -23,7 +23,7 @@ async def async_proxmox_api(
         host=f"{sandbox_env_config.host}:{sandbox_env_config.port}",
         user=f"{sandbox_env_config.user}@{sandbox_env_config.user_realm}",
         password=sandbox_env_config.password,
-        verify_ssl=False,
+        verify_tls=sandbox_env_config.verify_tls,
     )
 
 

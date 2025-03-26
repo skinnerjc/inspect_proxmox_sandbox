@@ -410,14 +410,16 @@ class QemuCommands(abc.ABC):
             vm_config, sdn_vnet_aliases, new_vm_id, extra_tags=extra_tags
         )
 
-        other_update_json: ProxmoxJsonDataType = {}
-        self.other_config_json(vm_config, other_update_json)
+        async def other_updates() -> None:
+            other_update_json: ProxmoxJsonDataType = {}
+            self.other_config_json(vm_config, other_update_json)
 
-        await self.async_proxmox.request(
-            "POST",
-            f"/nodes/{self.node}/qemu/{new_vm_id}/config",
-            json=other_update_json,
-        )
+            await self.async_proxmox.request(
+                "POST",
+                f"/nodes/{self.node}/qemu/{new_vm_id}/config",
+                json=other_update_json,
+            )
+        await self.task_wrapper.do_action_and_wait_for_tasks(other_updates)
 
         await self.start_and_await(vm_id=new_vm_id, is_sandbox=vm_config.is_sandbox)
         return new_vm_id
