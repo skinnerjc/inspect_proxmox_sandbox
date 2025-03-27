@@ -14,8 +14,9 @@
 # Each clone will have a different root password, which is printed out by vend.sh.
 
 sudo apt update
-sudo apt install -y virt-manager libvirt-clients libvirt-daemon-system qemu-system-x86 virtinst guestfs-tools
+sudo apt install -y virt-manager libvirt-clients libvirt-daemon-system qemu-system-x86 virtinst guestfs-tools docker.io
 sudo usermod --append --groups libvirt $(whoami)
+sudo usermod --append --groups docker $(whoami)
 
 virsh destroy proxmox-auto
 virsh undefine --nvram --remove-all-storage proxmox-auto
@@ -99,8 +100,9 @@ CMD ["cp", "/iso/proxmox-auto-from-iso.iso", "/output/"]
 
 EOFDOCKER
 
-docker build --debug  -t proxmox-auto-install .
-docker run --rm -v $(pwd):/output proxmox-auto-install
+# sudo here isn't great, but we can't guarantee the user running this script is in the correct docker group (yet)
+sudo docker build -t proxmox-auto-install .
+sudo docker run --rm -v $(pwd):/output proxmox-auto-install
 sudo cp -v proxmox-auto-from-iso.iso /var/lib/libvirt/images
 
 TOTAL_CPUS=$(nproc)
@@ -176,3 +178,7 @@ echo "PROXMOX_NODE=proxmox"
 echo "PROXMOX_VERIFY_TLS=0"
 EOFVEND
 chmod +x ./vend.sh
+
+echo "Script complete. Please attach to root's tmux session virt-inst-proxmox to see the progress of the automated Proxmox installation."
+echo 'When the installation is complete, the tmux session will close automatically.'
+echo 'You can run ./vend.sh 1 to create a fresh clone of the Proxmox VM.'
