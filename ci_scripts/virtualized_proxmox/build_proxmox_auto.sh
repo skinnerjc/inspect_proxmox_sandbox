@@ -103,22 +103,33 @@ docker build --debug  -t proxmox-auto-install .
 docker run --rm -v $(pwd):/output proxmox-auto-install
 sudo cp -v proxmox-auto-from-iso.iso /var/lib/libvirt/images
 
+TOTAL_CPUS=$(nproc)
+TOTAL_MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+
+# Use 75% of available resources for the VM
+VM_CPUS=$((TOTAL_CPUS * 75 / 100))
+VM_MEM_MB=$((TOTAL_MEM_KB * 75 / 100 / 1024))
+
+VM_CPUS=$((VM_CPUS < 2 ? 2 : VM_CPUS))
+VM_MEM_MB=$((VM_MEM_MB < 4096 ? 4096 : VM_MEM_MB))
+
 # Previously there were loads of problems with permissions here when attempting to use the ubuntu user.
 # Something to do with running in cloud-init; it worked fine when logged in with ubuntu in a normal termainl.
 # I gave up and just used sudo.
-cat << 'EOFVIRTINST' > virt-inst-proxmox.sh
-virt-install --name proxmox-auto \
-    --memory 131072 \
-    --vcpus 16 \
-    --disk size=2000 \
-    --cdrom '/var/lib/libvirt/images/proxmox-auto-from-iso.iso' \
-    --os-variant debian12 \
-    --network none \
-    --graphics none \
-    --console pty,target_type=serial \
-    --boot uefi \
-    --cpu host \
-    --qemu-commandline='-device virtio-net,netdev=user.0,addr=8 -netdev user,id=user.0,hostfwd=tcp::10000-:8006' \
+# Disk size is hard-coded, but because check disk_size=off is used, it will not take up the full amount at the start.
+cat << EOFVIRTINST > virt-inst-proxmox.sh
+virt-install --name proxmox-auto \\
+    --memory ${VM_MEM_MB} \\
+    --vcpus ${VM_CPUS} \\
+    --disk size=2000 \\
+    --cdrom '/var/lib/libvirt/images/proxmox-auto-from-iso.iso' \\
+    --os-variant debian12 \\
+    --network none \\
+    --graphics none \\
+    --console pty,target_type=serial \\
+    --boot uefi \\
+    --cpu host \\
+    --qemu-commandline='-device virtio-net,netdev=user.0,addr=8 -netdev user,id=user.0,hostfwd=tcp::10000-:8006' \\
     --check disk_size=off
 EDITOR="sed -i '/<disk type=.*device=.cdrom/,/<\/disk>/d'" virsh edit proxmox-auto
 EOFVIRTINST
