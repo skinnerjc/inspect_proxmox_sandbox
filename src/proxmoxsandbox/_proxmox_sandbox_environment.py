@@ -21,6 +21,7 @@ from inspect_ai.util import (
     trace_action,
 )
 from pydantic import BaseModel
+from typing_extensions import override
 
 from proxmoxsandbox._impl.agent_commands import AgentCommands
 from proxmoxsandbox._impl.async_proxmox import AsyncProxmoxAPI
@@ -36,6 +37,8 @@ from proxmoxsandbox.schema import (
 
 @sandboxenv(name="proxmox")
 class ProxmoxSandboxEnvironment(SandboxEnvironment):
+    """An Inspect sandbox environment for Proxmox virtual machines."""
+
     logger = getLogger(__name__)
 
     TRACE_NAME = "proxmox_sandbox_environment"
@@ -87,7 +90,8 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
     def _prefix_timeout(self, timeout: int | None) -> str:
         if timeout is None:
             return ""
-        # Enforce timeout using `timeout`. Cannot enforce this on the client side (requires terminating the remote process).
+        # Enforce timeout using `timeout`. Cannot enforce this on the client side
+        # (requires terminating the remote process).
         # `-k 5s` sends SIGKILL after grace period in case user command doesn't respect
         # SIGTERM.
         return f"timeout -k 5s {timeout}s "
@@ -105,7 +109,11 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         timeout: int | None,
     ) -> str:
         def generate() -> Generator[str, None, None]:
-            yield f"rm -f {tmp_start}script.stdout {tmp_start}script.stderr {tmp_start}script.returncode\n"
+            yield (
+                f"rm -f {tmp_start}script.stdout"
+                + f" {tmp_start}script.stderr"
+                + f" {tmp_start}script.returncode\n"
+            )
             if user is not None:
                 yield f"su -l {shlex.quote(user)} << 'EOF{tmp_start}EOF'\n"
             # The rest of the script gets quoted in a heredoc if we had to use su
@@ -115,7 +123,13 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
                 yield f"export {shlex.quote(key)}={shlex.quote(value)}\n"
             if stdin is not None:
                 yield self._pipe_user_input(stdin)
-            yield f'{self._prefix_timeout(timeout)}{shlex.join(command)} > {tmp_start}script.stdout 2>{tmp_start}script.stderr\necho -n "$?" > {tmp_start}script.returncode\n'
+            yield (
+                f"{self._prefix_timeout(timeout)}{shlex.join(command)}"
+                + f" >{tmp_start}script.stdout"
+                + f" 2>{tmp_start}script.stderr\n"
+                + 'echo -n "$?" >'
+                + f" {tmp_start}script.returncode\n"
+            )
             yield "sync\n"
             if user is not None:
                 yield f"EOF{tmp_start}EOF\n"
@@ -123,21 +137,24 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         return "".join(generate())
 
     @classmethod
+    @override
     def config_files(cls) -> List[str]:
         return []
 
     @classmethod
+    @override
     def default_concurrency(cls) -> int | None:
         return None
 
     @classmethod
+    @override
     async def task_init(
         cls, task_name: str, config: SandboxEnvironmentConfigType | None
     ) -> None:
         if config is not None:
             if not isinstance(config, ProxmoxSandboxEnvironmentConfig):
                 raise ValueError("config must be a ProxmoxSandboxEnvironmentConfig")
-            async_proxmox_api = cls.create_async_proxmox_api(config)
+            async_proxmox_api = cls._create_async_proxmox_api(config)
             built_in_vm = BuiltInVM(async_proxmox=async_proxmox_api, node=config.node)
             built_in_names = set()
             for vm_config in config.vms_config:
@@ -148,6 +165,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         return None
 
     @classmethod
+    @override
     async def sample_init(
         cls,
         task_name: str,
@@ -159,13 +177,14 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         if not isinstance(config, ProxmoxSandboxEnvironmentConfig):
             raise ValueError("config must be a ProxmoxSandboxEnvironmentConfig")
 
-        async_proxmox_api = cls.create_async_proxmox_api(config)
+        async_proxmox_api = cls._create_async_proxmox_api(config)
 
         infra_commands = InfraCommands(
             async_proxmox=async_proxmox_api, node=config.node
         )
 
-        # 8 characters max unfortunately; we save two at the end to distinguish vnet/SDN objects
+        # 8 characters max unfortunately; we save two at the end to distinguish
+        # vnet/SDN objects
         task_name_start = re.sub("[^a-zA-Z0-9]", "x", task_name[:3].lower())
         proxmox_ids_start = f"{task_name_start}{randint(0, 999):03d}"
         # TODO: could check here for collisions
@@ -218,7 +237,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         return reorder_default_first(sandboxes)
 
     @classmethod
-    def create_async_proxmox_api(
+    def _create_async_proxmox_api(
         cls, config: ProxmoxSandboxEnvironmentConfig
     ) -> AsyncProxmoxAPI:
         return AsyncProxmoxAPI(
@@ -229,6 +248,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         )
 
     @classmethod
+    @override
     async def sample_cleanup(
         cls,
         task_name: str,
@@ -239,7 +259,8 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         any_vm_sandbox_environment: ProxmoxSandboxEnvironment | None = None
         for env in environments.values():
             if isinstance(env, ProxmoxSandboxEnvironment):
-                # we only need a single VM sandbox to have enough information to tear them all down
+                # we only need a single VM sandbox to have enough information
+                # to tear them all down
                 any_vm_sandbox_environment = env
 
         if any_vm_sandbox_environment is not None:
@@ -251,6 +272,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         return None
 
     @classmethod
+    @override
     async def task_cleanup(
         cls,
         task_name: str,
@@ -264,7 +286,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             raise ValueError("config must be a ProxmoxSandboxEnvironmentConfig")
 
         infra_commands = InfraCommands(
-            async_proxmox=cls.create_async_proxmox_api(config), node=config.node
+            async_proxmox=cls._create_async_proxmox_api(config), node=config.node
         )
 
         if cleanup:
@@ -276,10 +298,11 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             )
 
     @classmethod
+    @override
     async def cli_cleanup(cls, id: str | None) -> None:
         if id is None:
             config = ProxmoxSandboxEnvironmentConfig()
-            async_proxmox_api = cls.create_async_proxmox_api(config)
+            async_proxmox_api = cls._create_async_proxmox_api(config)
             infra_commands = InfraCommands(
                 async_proxmox=async_proxmox_api, node=config.node
             )
@@ -288,9 +311,11 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             print("\n[red]Cleanup by ID not implemented[/red]\n")
 
     @classmethod
+    @override
     def config_deserialize(cls, config: dict[str, Any]) -> BaseModel:
         return ProxmoxSandboxEnvironmentConfig(**config)
 
+    @override
     async def exec(
         self,
         cmd: List[str],
@@ -384,7 +409,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
                     max_size=SandboxEnvironmentLimits.MAX_EXEC_OUTPUT_SIZE,
                 )
             )["content"]
-            returncode = await self.read_return_code(tmp_start)
+            returncode = await self._read_return_code(tmp_start)
             exec_response = ExecResult(
                 success=returncode == 0,
                 returncode=returncode,
@@ -402,8 +427,9 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             raise TimeoutError("Command timed out")
 
         if len(exec_response.stderr.splitlines()) == 1:
-            # if err-data is longer than one line, then part of the script ran, and it didn't fail on the first
-            # line, which is characteristic of failing to execute a non-executable file
+            # if err-data is longer than one line, then part of the script ran,
+            # and it didn't fail on the first line, which is characteristic of
+            # failing to execute a non-executable file
             if (
                 exec_response.returncode == 126
                 and "permission denied" in exec_response.stderr.casefold()
@@ -417,7 +443,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         stop=tenacity.stop_after_delay(2),
         retry_error_callback=lambda retry_state: 124,
     )
-    async def read_return_code(self, tmp_start):
+    async def _read_return_code(self, tmp_start):
         returncode_string = (
             await self.agent_commands.read_file_or_blank(
                 vm_id=self.vm_id,
@@ -454,12 +480,11 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             else:
                 raise ex
 
+    @override
     async def write_file(self, file: str, contents: str | bytes) -> None:
-        """
-        Writes contents to file, handling large files by splitting them into chunks
-        and recombining using cat.
+        # Writes contents to file, handling large files by splitting them into chunks
+        # and recombining using cat.
 
-        """
         CHUNK_SIZE = (
             40 * 1024
         )  # 40KB chunks to be safe, to take base64 encoding into account
@@ -506,6 +531,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             # Clean up temporary files
             await self.exec(cmd=["rm", "-rf", temp_dir])
 
+    @override
     async def read_file(self, file: str, text: bool = True) -> Union[str | bytes]:  # type: ignore
         """Read a file from the sandbox environment.
 
@@ -547,8 +573,11 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         else:
             return bytes_data
 
+    @override
     async def connection(self) -> SandboxConnection:
         """
+        Returns a connection to the sandbox.
+
         Raises:
            NotImplementedError: For sandboxes that don't provide connections
            ConnectionError: If sandbox is not currently running.
@@ -561,6 +590,8 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         )
 
     async def create_snapshot(self, snapshot_name: str) -> None:
+        """Creates a snapshot of the VM."""
+
         async def snapshotter() -> None:
             await self.agent_commands.create_snapshot(
                 vm_id=self.vm_id, snapshot_name=snapshot_name
@@ -569,6 +600,8 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         await self.task_wrapper.do_action_and_wait_for_tasks(snapshotter)
 
     async def restore_snapshot(self, snapshot_name: str) -> None:
+        """Restores a snapshot of the VM."""
+
         async def snapshotter() -> None:
             await self.agent_commands.rollback_to_snapshot(
                 vm_id=self.vm_id, snapshot_name=snapshot_name

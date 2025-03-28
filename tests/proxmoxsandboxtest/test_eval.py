@@ -28,7 +28,7 @@ sample text
             ),
         ],
         scorer=includes(),
-        sandbox="proxmox"
+        sandbox="proxmox",
     )
 
 

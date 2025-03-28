@@ -67,12 +67,14 @@ packages:
 #     lock_passwd: false
 #     sudo: ALL=(ALL) NOPASSWD:ALL
 #     groups: sudo
-  
+
 runcmd:
   - [ systemctl, enable, qemu-guest-agent ]
   - [ systemctl, start, qemu-guest-agent ]
-  - [ systemctl, mask, systemd-networkd-wait-online.service ] # this causes startup delays and makes it annoying to debug network issues
-""",
+  - [ systemctl, mask, systemd-networkd-wait-online.service ]
+# systemd-networkd-wait-online.service causes startup delays
+# and makes it annoying to debug network issues
+""",  # noqa: E501
         network_config: str = """network:
   version: 2
   ethernets:
@@ -319,7 +321,9 @@ runcmd:
                         "memory": 2048,
                         "cores": 2,
                         "ostype": "l26",
-                        "scsi0": f"local-lvm:0,import-from=local:import/{ova_name}/{ova_vmdk_filename},format=qcow2,cache=writeback",
+                        "scsi0": "local-lvm:0,"
+                        + f"import-from=local:import/{ova_name}/{ova_vmdk_filename},"
+                        + "format=qcow2,cache=writeback",
                         "scsihw": "virtio-scsi-single",
                         "net0": f"virtio,bridge={vnet_id}",
                         "start": False,
@@ -333,11 +337,6 @@ runcmd:
                 vm_id=next_available_vm_id,
             )
 
-            # TODO: rather than these two retried calls, we should wait until the VM is definitely not locked, then go
-            @tenacity.retry(
-                wait=tenacity.wait_exponential(min=0.1, exp_base=1.3),
-                stop=tenacity.stop_after_delay(120),
-            )
             async def update_tags() -> None:
                 await self.async_proxmox.request(
                     "POST",
@@ -347,7 +346,7 @@ runcmd:
                     },
                 )
 
-            await update_tags()
+            await self.task_wrapper.do_action_and_wait_for_tasks(update_tags)
 
             await self.qemu_commands.start_and_await(
                 vm_id=next_available_vm_id, is_sandbox=True

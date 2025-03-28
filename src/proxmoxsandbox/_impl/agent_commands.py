@@ -34,12 +34,14 @@ class AgentCommands:
         """Write a file to the VM using QEMU agent."""
         path = f"/nodes/{self.node}/qemu/{vm_id}/agent/file-write"
         data: ProxmoxJsonDataType = {
-            # It's necessary to encode the content as base-64 ourselves, otherwise a string with non-ASCII characters gets mangled
+            # It's necessary to encode the content as base-64 ourselves,
+            # otherwise a string with non-ASCII characters gets mangled
             # You see the following:
-            # ERROR: ResourceException('500 Internal Server Error: Wide character in subroutine entry at /usr/share/perl5/PVE/API2/Qemu/Agent.pm line 491.')
+            # ERROR: ResourceException('500 Internal Server Error: Wide character in subroutine entry at /usr/share/perl5/PVE/API2/Qemu/Agent.pm line 491.')  # noqa: E501
             "content": base64.b64encode(content).decode(),
             "file": filepath,
-            # encode=0 instead of encode=False is surprising as it's a binary, but encode=False doesn't work, nor does encode="false"
+            # encode=0 instead of encode=False is surprising as it's a binary,
+            # but encode=False doesn't work, nor does encode="false"
             "encode": 0,
         }
         with trace_action(
@@ -86,7 +88,8 @@ class AgentCommands:
         filepath: str,
         max_size: int = SandboxEnvironmentLimits.MAX_READ_FILE_SIZE,
     ):
-        # this is a hack; it would be better to use a type here with e.g. size_bytes and friendly_name
+        # this is a hack; it would be better to use a type here with
+        # e.g. size_bytes and friendly_name
         max_size_str = (
             SandboxEnvironmentLimits.MAX_READ_FILE_SIZE_STR
             if max_size == SandboxEnvironmentLimits.MAX_READ_FILE_SIZE

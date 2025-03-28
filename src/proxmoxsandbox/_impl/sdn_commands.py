@@ -113,8 +113,8 @@ class SdnCommands(abc.ABC):
         vnet_configs: List[VnetConfig] = []
         for alias in aliases:
             try_third_octets = list(range(2, 253))
-            # Deliberately randomize the IP address range you get if you don't specify one.
-            # This is to avoid brittle evals
+            # Deliberately randomize the IP address range you get if you don't specify
+            # one. This is to avoid brittle evals.
             shuffle(try_third_octets)
             ok_vnet_config = None
             for third_octet in try_third_octets:
@@ -130,10 +130,10 @@ class SdnCommands(abc.ABC):
                     continue
             if ok_vnet_config is None:
                 raise ValueError("Could not find a suitable IP range for the SDN")
-            # There is obviously a race condition here. Another eval could sneak in and create a clashing
-            # IP range.
-            # We could use a 10.*/24 range instead, which would give us many more ranges and
-            # reduce the chance of a collision.
+            # There is obviously a race condition here. Another eval could sneak in and
+            # create a clashing IP range.
+            # We could use a 10.*/24 range instead, which would give us many more ranges
+            # and reduce the chance of a collision.
 
         return SdnConfig(vnet_configs=tuple(vnet_configs))
 
@@ -146,14 +146,16 @@ class SdnCommands(abc.ABC):
                         found_dhcp_range = True
             if not found_dhcp_range:
                 raise ValueError(
-                    f"DHCP ranges should be provided when use_pve_ipam_dnsnmasq={sdn_config.use_pve_ipam_dnsnmasq}"
+                    "DHCP ranges should be provided when "
+                    + f"use_pve_ipam_dnsnmasq={sdn_config.use_pve_ipam_dnsnmasq}"
                 )
         if not sdn_config.use_pve_ipam_dnsnmasq:
             for vnet_config in sdn_config.vnet_configs:
                 for subnet in vnet_config.subnets:
                     if len(subnet.dhcp_ranges) > 0:
                         raise ValueError(
-                            f"DHCP ranges cannot be provided when use_pve_ipam_dnsnmasq={sdn_config.use_pve_ipam_dnsnmasq}"
+                            "DHCP ranges cannot be provided when use_pve_ipam_dnsnmasq="
+                            + f"{sdn_config.use_pve_ipam_dnsnmasq}"
                         )
 
     async def create_sdn(
@@ -220,7 +222,7 @@ class SdnCommands(abc.ABC):
                             "gateway": str(subnet.gateway),
                             "snat": subnet.snat,
                             "dhcp-range": list(
-                                dhcp_range.to_proxmox_format()
+                                dhcp_range._to_proxmox_format()
                                 for dhcp_range in subnet.dhcp_ranges
                             ),
                         },

@@ -100,8 +100,12 @@ class AsyncProxmoxAPI:
                 )
 
             if response.is_error and raise_errors:
-                # deliberately not using response.raise_for_status here as it does not include response.text in the raised error
-                message = f"HTTP response error: {response.status_code} {response.reason_phrase}"
+                # We are deliberately not using response.raise_for_status here as it
+                # does not include response.text in the raised error
+                message = (
+                    f"HTTP response error: {response.status_code} "
+                    + f"{response.reason_phrase}"
+                )
                 if response.text:
                     message += f": {response.text}"
                 raise httpx.HTTPStatusError(
@@ -127,7 +131,8 @@ class AsyncProxmoxAPI:
             headers["CSRFPreventionToken"] = self.csrf_token
         return headers
 
-    # this more naturally belongs in qemu_commands but it's copied here because of read_file
+    # this more naturally belongs in qemu_commands
+    # but it's copied here because of read_file
     async def _ping_qemu_agent(self, node: str, vm_id: int):
         await self.request("POST", f"/nodes/{node}/qemu/{vm_id}/agent/ping")
 
@@ -140,7 +145,8 @@ class AsyncProxmoxAPI:
             node (str): The node name
             vm_id (int): The VM ID
             filepath (str): Path to the file to read
-            max_size (int, optional): Maximum number of bytes to read. None means no limit.
+            max_size (int, optional): Maximum number of bytes to read.
+                None means no limit.
             max_size_str (str): Human-readable string of the max_size
 
         Returns:
@@ -209,7 +215,9 @@ class AsyncProxmoxAPI:
         content_type: Literal["iso", "vztmpl", "import"],
         filename: Optional[str] = None,
     ) -> dict:
-        """Upload a file to Proxmox storage using pycurl (better for large file uploads).
+        """Upload a file to Proxmox storage using pycurl.
+
+        This is better for large file uploads)
 
         Args:
             node: The node name

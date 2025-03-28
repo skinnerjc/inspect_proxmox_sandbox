@@ -35,10 +35,13 @@ class StorageCommands(abc.ABC):
 
         Args:
             storage: The storage name in Proxmox
-            content: The binary content of the file
-            file_type: One of the file types supported by Proxmox
-            filename: The filename to use for the file in Proxmox storage. If not provided, the filename of the file will be used.
-            overwrite: Whether to overwrite the file if it already exists. If False, this function will return immediately if the file already exists.
+            file: Path to the file
+            content_type: One of the file types supported by Proxmox
+            filename: The filename to use for the file in Proxmox storage.
+                If not provided, the filename of the file will be used.
+            overwrite: Whether to overwrite the file if it already exists.
+                If False, this function will return immediately
+                if the file already exists.
         """
         if not isinstance(file, Path):
             raise ValueError(f"{file=} must be a Path; got {type(file)}")
@@ -55,7 +58,8 @@ class StorageCommands(abc.ABC):
                     filename
                 ):
                     self.logger.debug(
-                        f"File {filename} already exists in storage {self.storage} on node {self.node} at {existing_file['volid']}"
+                        f"File {filename} already exists in storage {self.storage}"
+                        + f" on node {self.node} at {existing_file['volid']}"
                     )
                     return
 

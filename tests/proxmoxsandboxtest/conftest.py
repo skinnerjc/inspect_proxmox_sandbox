@@ -8,7 +8,7 @@ from proxmoxsandbox._impl.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox._impl.built_in_vm import BuiltInVM
 from proxmoxsandbox._impl.qemu_commands import QemuCommands, VnetAliases
 from proxmoxsandbox._impl.sdn_commands import SdnCommands
-from proxmoxsandbox.proxmox_sandbox_environment import (
+from proxmoxsandbox._proxmox_sandbox_environment import (
     ProxmoxSandboxEnvironment,
     ProxmoxSandboxEnvironmentConfig,
 )
@@ -18,7 +18,6 @@ from proxmoxsandbox.proxmox_sandbox_environment import (
 async def async_proxmox_api(
     sandbox_env_config: ProxmoxSandboxEnvironmentConfig,
 ) -> AsyncGenerator[AsyncProxmoxAPI, None]:
-    """Provides configured AsyncProxmoxAPI instance"""
     yield AsyncProxmoxAPI(
         host=f"{sandbox_env_config.host}:{sandbox_env_config.port}",
         user=f"{sandbox_env_config.user}@{sandbox_env_config.user_realm}",

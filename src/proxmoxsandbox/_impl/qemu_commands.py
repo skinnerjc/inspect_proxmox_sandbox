@@ -26,7 +26,9 @@ class QemuCommands(abc.ABC):
 
     async_proxmox: AsyncProxmoxAPI
     task_wrapper: TaskWrapper
-    storage: str  # TODO disambiguate that this is for images rather than VM disks which continue to live in local-lvm
+    # TODO disambiguate that "this.storage" is for images rather than VM disks
+    # which continue to live in local-lvm
+    storage: str
     storage_commands: StorageCommands
     node: str
 
@@ -160,7 +162,7 @@ class QemuCommands(abc.ABC):
     def _convert_sdn_vnet_aliases(
         self, sdn_vnet_aliases: VnetAliases
     ) -> Dict[str, str]:
-        """Convert list of (vnet_id, vnet_alias) tuples to alias->id mapping, skipping None aliases."""
+        """Convert list of (vnet_id, vnet_alias) tuples to alias->id mapping, skipping None aliases."""  # noqa: E501
         return {
             alias: vnet_id for vnet_id, alias in sdn_vnet_aliases if alias is not None
         }
@@ -188,7 +190,7 @@ class QemuCommands(abc.ABC):
                         json={
                             "vmid": new_vm_id,
                             "node": self.node,
-                            "archive": f"/var/lib/vz/dump/{vm_config.vm_source_config.existing_backup_name}",
+                            "archive": f"/var/lib/vz/dump/{vm_config.vm_source_config.existing_backup_name}",  # noqa: E501
                         },
                     )
                     await self.register_created_vm(new_vm_id)
@@ -208,10 +210,9 @@ class QemuCommands(abc.ABC):
 
                 if vm_id_to_clone is None:
                     raise ValueError(
-                        f"couldn't find template VM for {vm_config.vm_source_config.built_in}"
+                        "couldn't find template VM for "
+                        + f"{vm_config.vm_source_config.built_in}"
                     )
-
-                # TODO: check "Import" is enabled for local storage
 
                 new_vm_id = await self.clone_vm_and_start(
                     vm_config, vm_id_to_clone, sdn_vnet_aliases, False
@@ -243,13 +244,14 @@ class QemuCommands(abc.ABC):
 
                 vmdks = []
                 with tarfile.open(vm_config.vm_source_config.ova, "r") as tar:
-                    # Get the list of member names
                     file_list = tar.getnames()
 
                     for file_name in file_list:
                         if file_name.endswith(".vmdk"):
                             vmdks.append(file_name)
 
+                # this logic is reverse-engineered from the Proxmox GUI
+                # and may be brittle
                 for i, vmdk in enumerate(vmdks):
                     json_for_create[f"scsi{i}"] = (
                         f"local-lvm:0,import-from={self.storage}:import/{vm_config.vm_source_config.ova.name}/{vmdk},format=qcow2,cache=writeback"
@@ -303,12 +305,15 @@ class QemuCommands(abc.ABC):
 
             if len(found_vm) == 0:
                 raise ValueError(
-                    f"Couldn't find VM with tag {vm_config.vm_source_config.existing_vm_template_tag}"
+                    "Couldn't find VM with tag "
+                    + f"{vm_config.vm_source_config.existing_vm_template_tag}"
                 )
 
             if len(found_vm) > 1:
                 raise ValueError(
-                    f"Found multiple VMs with tag {vm_config.vm_source_config.existing_vm_template_tag}: {found_vm=}"
+                    "Found multiple VMs with tag "
+                    + f"{vm_config.vm_source_config.existing_vm_template_tag}: "
+                    + f"{found_vm=}"
                 )
 
             vm_id_to_clone = found_vm[0]["vmid"]
@@ -419,6 +424,7 @@ class QemuCommands(abc.ABC):
                 f"/nodes/{self.node}/qemu/{new_vm_id}/config",
                 json=other_update_json,
             )
+
         await self.task_wrapper.do_action_and_wait_for_tasks(other_updates)
 
         await self.start_and_await(vm_id=new_vm_id, is_sandbox=vm_config.is_sandbox)
@@ -459,7 +465,8 @@ class QemuCommands(abc.ABC):
             "GET", f"/nodes/{self.node}/storage/local/content?content=backup"
         )
 
-        # find the new backup; it will have a "volid" field not matching any volid in a dict in existing_backups:
+        # find the new backup; it will have a "volid" field not matching any volid in a
+        # dict in existing_backups:
         new_backup = next(
             backup
             for backup in all_backups
@@ -470,7 +477,7 @@ class QemuCommands(abc.ABC):
         return new_backup
 
     async def connection_url(self, vm_id: int) -> str:
-        return f"{self.async_proxmox.base_url}/?console=kvm&novnc=1&vmid={vm_id}&node={self.node}"
+        return f"{self.async_proxmox.base_url}/?console=kvm&novnc=1&vmid={vm_id}&node={self.node}"  # noqa: E501
 
     async def register_created_vm(self, vm_id: int | None) -> None:
         if vm_id is not None:

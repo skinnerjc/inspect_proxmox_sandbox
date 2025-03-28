@@ -25,7 +25,7 @@ class TaskWrapper(abc.ABC):
 
         await the_action()
 
-        # Regrettably, sometimes the resulting server-side tasks don't turn up immediately
+        # Sometimes the resulting server-side tasks don't turn up immediately
         await asyncio.sleep(async_wait_seconds)
 
         @tenacity.retry(

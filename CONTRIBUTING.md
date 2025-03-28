@@ -43,14 +43,24 @@ Then run:
 uv run pytest
 ```
 
-## Quality checks
+## Linting & Formatting
 
-Pre-commit, please check:
+[Ruff](https://docs.astral.sh/ruff/) is used for linting and formatting. To run both
+checks manually:
 
 ```bash
-uv run mypy && uv run ruff check
+ruff check .
+ruff format .
 ```
 
+## Type Checking
+
+[Mypy](https://github.com/python/mypy) is used for type checking. To run type checks
+manually:
+
+```bash
+mypy
+```
 
 ## Design Notes
 

@@ -5,7 +5,7 @@ from typing import List
 
 from inspect_ai.util._sandbox.self_check import self_check
 
-from proxmoxsandbox.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
+from proxmoxsandbox._proxmox_sandbox_environment import ProxmoxSandboxEnvironment
 
 from .proxmox_sandbox_utils import setup_requests_logging
 
@@ -60,8 +60,8 @@ async def test_self_check(
 
     known_failures: List[str] = [
         "test_read_file_not_allowed",  # user is root, so this doesn't work
-        "test_write_text_file_without_permissions",  # user is root, so this doesn't work
-        "test_write_binary_file_without_permissions",  # user is root, so this doesn't work
+        "test_write_text_file_without_permissions",  # ditto
+        "test_write_binary_file_without_permissions",  # ditto
     ]
 
     return await check_results_of_self_check(

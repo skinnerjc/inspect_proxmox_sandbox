@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.entry-points."inspect_ai"]
-"proxmox-sandbox" = "proxmoxsandbox.proxmox_sandbox_environment"
+"proxmox-sandbox" = "proxmoxsandbox._proxmox_sandbox_environment"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -39,6 +39,27 @@ allow-direct-references = true
 [tool.ruff]
 target-version = "py310"
 
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # flake8
+  "D",   # pydocstyle
+  "I",   # isort
+]
+ignore = [
+  "D212",  # multi-line-summary-first-line
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Rationale: public objects in the tests and experimental dirs don't form part of the 
+# package so drop the requirement for docstrings.
+"tests/*" = ["D10"]  # undocumented-(public|magic)-*
+"src/proxmoxsandbox/experimental/*" = ["D10"]  # undocumented-(public|magic)-*
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
 [tool.mypy]
 python_version = "3.10"
 plugins = "pydantic.mypy"
@@ -50,4 +71,5 @@ dev = [
     "pytest>=8.3.4",
     "pytest-asyncio>=0.25.3",
     "ruff>=0.9.3",
+    "types-pycurl>=7.45.0"
 ]

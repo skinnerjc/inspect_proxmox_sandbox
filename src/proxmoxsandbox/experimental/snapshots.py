@@ -1,14 +1,13 @@
 from inspect_ai import Task, eval, task
+from inspect_ai.approval import ApprovalPolicy, auto_approver, human_approver
 from inspect_ai.dataset import Sample
 from inspect_ai.model import ModelOutput, get_model
 from inspect_ai.scorer import includes
 from inspect_ai.solver import basic_agent
 from inspect_ai.tool import Tool, bash, tool
 from inspect_ai.util import SandboxEnvironmentSpec, sandbox, store
-from inspect_ai.approval import ApprovalPolicy, human_approver, auto_approver
 
-
-from proxmoxsandbox.proxmox_sandbox_environment import (
+from proxmoxsandbox._proxmox_sandbox_environment import (
     ProxmoxSandboxEnvironment,
     ProxmoxSandboxEnvironmentConfig,
 )
@@ -27,12 +26,11 @@ sample text
 def create_snapshot() -> Tool:
     async def do_create_snapshot() -> int:
         """
-        Use this function to create a snapshot of your sandbox
+        Use this function to create a snapshot of your sandbox.
 
         Returns:
           The number of snapshot, which can be used to rollback
         """
-
         current_snapshot_id = store().get("current_snapshot_id", 0)
         new_snapshot_id = current_snapshot_id + 1
         try:
@@ -52,14 +50,13 @@ def create_snapshot() -> Tool:
 def rollback_to_snapshot() -> Tool:
     async def do_rollback_to_snapshot(snapshot_id: int) -> bool:
         """
-        Use this function to roll back to a previous snapshot of your sandbox
+        Use this function to roll back to a previous snapshot of your sandbox.
 
         Args:
             snapshot_id (int): id of the previous snapshot
         Returns:
             bool: Always True
         """
-
         try:
             await (
                 sandbox()
@@ -103,7 +100,8 @@ if __name__ == "__main__":
                     tool_name="bash",
                     tool_arguments={
                         "cmd": "ls -d /f*"
-                    },  # the file doesn't exist, so this will return 'No such file or directory'
+                    },  # the file doesn't exist, so this
+                    # will return 'No such file or directory'
                 ),
                 ModelOutput.for_tool_call(
                     model="mockllm/model",
@@ -130,7 +128,8 @@ if __name__ == "__main__":
                     tool_name="bash",
                     tool_arguments={
                         "cmd": "ls -d /f*"
-                    },  # this will again show 'No such file or directory' since we're at the previous snapshot
+                    },  # this will again show 'No such file or directory' since
+                    # we're at the previous snapshot
                 ),
                 ModelOutput.for_tool_call(
                     model="mockllm/model",

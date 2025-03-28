@@ -6,7 +6,7 @@ from pytest import raises
 
 from proxmoxsandbox._impl.qemu_commands import QemuCommands
 from proxmoxsandbox._impl.sdn_commands import SdnCommands
-from proxmoxsandbox.proxmox_sandbox_environment import ProxmoxSandboxEnvironment
+from proxmoxsandbox._proxmox_sandbox_environment import ProxmoxSandboxEnvironment
 from proxmoxsandbox.schema import (
     DhcpRange,
     ProxmoxSandboxEnvironmentConfig,
@@ -164,7 +164,8 @@ async def test_multiple_sandboxes_isolated(sandbox_env_config) -> None:
         #     f"Should not be able to ping between sandboxes; {ping_result=}"
         # )
         print(
-            f"FIXME: ping_result.success is {ping_result.success}, but it should be False"
+            f"FIXME: ping_result.success is {ping_result.success},"
+            + " but it should be False"
         )
     finally:
         await ProxmoxSandboxEnvironment.sample_cleanup(
@@ -234,7 +235,8 @@ async def test_at_least_one_sandbox() -> None:
 
 async def test_connect(proxmox_sandbox_environment: ProxmoxSandboxEnvironment) -> None:
     connection: SandboxConnection = await proxmox_sandbox_environment.connection()
-    # we can't really do much more than this assertion; sandbox.connection needs to be tested manually
+    # we can't really do much more than this assertion;
+    # sandbox.connection() needs to be tested manually
     assert "open 'http" in connection.command
 
 
