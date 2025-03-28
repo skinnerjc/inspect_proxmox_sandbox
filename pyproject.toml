@@ -8,14 +8,14 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "requests>=2.32.3",
     "tenacity>=9.0.0",
     "httpx>=0.28.1",
     "pydantic>=2.10.6",
     "pycdlib>=1.14.0",
     "pydantic-extra-types>=2.10.2",
     "pycurl>=7.45.0",
-    "inspect_ai>=0.3.79"
+    "inspect_ai>=0.3.79",
+    "rich>=13.9"
 ]
 
 [project.entry-points."inspect_ai"]

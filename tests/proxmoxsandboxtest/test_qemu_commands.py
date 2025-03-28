@@ -4,7 +4,7 @@ import pytest
 
 from proxmoxsandbox._impl.built_in_vm import BuiltInVM
 from proxmoxsandbox._impl.qemu_commands import QemuCommands, VnetAliases
-from proxmoxsandbox._impl.sdn_commands import SdnCommands
+from proxmoxsandbox._impl.sdn_commands import STATIC_SDN_START, SdnCommands
 from proxmoxsandbox.schema import (
     SdnConfig,
     VmConfig,
@@ -68,7 +68,7 @@ async def test_none_nic_from_template_tag(
 
     new_vm = await qemu_commands.read_vm(new_vm_id)
     assert "net0" in new_vm
-    assert BuiltInVM.STATIC_SDN_START in new_vm["net0"]
+    assert STATIC_SDN_START in new_vm["net0"]
     assert "inspect" in new_vm["tags"]
     assert "builtin-ubuntu24.04" in new_vm["tags"]
 
