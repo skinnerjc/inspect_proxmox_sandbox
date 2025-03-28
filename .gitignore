@@ -1,9 +1,8 @@
 .venv
-
 .env
 .env-*
 logs/
 __pycache__/
 .mypy_cache/
-
 .vscode/
+.ruff_cache

@@ -1,6 +1,16 @@
-# Getting started
+# Contributing Guide
 
-To develop on this project, run this beforehand:
+**NOTE:** If you have any feature requests or suggestions, we'd love to hear about them
+and discuss them with you before you raise a PR. Please come discuss your ideas with us
+in our [Inspect
+Community](https://join.slack.com/t/inspectcommunity/shared_invite/zt-2w9eaeusj-4Hu~IBHx2aORsKz~njuz4g)
+Slack workspace.
+
+## Getting started
+
+This project uses [uv](https://github.com/astral-sh/uv) for Python packaging.
+
+Run this beforehand:
 
 ```
 uv sync
@@ -9,19 +19,19 @@ uv sync
 You then can either source the venv with
 
 ```
-source .bin/venv/activate
+source .venv/bin/activate
 ```
 
 or prefix your pytest (etc.) commands with `uv run ...`
 
-# Local Proxmox
+## Local Proxmox
 
-If you want to spin up a Proxmox instance locally, you can use the script `ci_scripts/virtualized_proxmox/build_proxmox_auto.sh`.
+If you want to spin up a Proxmox instance locally, you can use the script `scripts/virtualized_proxmox/build_proxmox_auto.sh`.
 It has been tested on Ubuntu 24.04.
 
 It will handle the extra configuration mentioned in this project's README.
 
-# Tests
+## Tests
 
 To run the tests, you will need a proxmox instance and an .env file per README.md.
 
@@ -33,7 +43,7 @@ Then run:
 uv run pytest
 ```
 
-# Quality checks
+## Quality checks
 
 Pre-commit, please check:
 
@@ -42,7 +52,7 @@ uv run mypy && uv run ruff check
 ```
 
 
-# Design Notes
+## Design Notes
 
 All communication with Proxmox is via the AsyncProxmoxAPI class.
 

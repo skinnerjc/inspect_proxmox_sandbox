@@ -258,7 +258,6 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         cleanup: bool,
     ) -> None:
         if config is None:
-            getLogger
             config = ProxmoxSandboxEnvironmentConfig()
 
         if not isinstance(config, ProxmoxSandboxEnvironmentConfig):
@@ -271,7 +270,10 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
         if cleanup:
             await infra_commands.cleanup()
         else:
-            print("I don't know what to do!!")
+            print(
+                "\nCleanup all sandbox releases with: "
+                "[blue]inspect sandbox cleanup proxmox[/blue]\n"
+            )
 
     @classmethod
     async def cli_cleanup(cls, id: str | None) -> None:
@@ -283,7 +285,7 @@ class ProxmoxSandboxEnvironment(SandboxEnvironment):
             )
             await infra_commands.cleanup_no_id()
         else:
-            raise NotImplementedError("Cleanup by ID not implemented")
+            print("\n[red]Cleanup by ID not implemented[/red]\n")
 
     @classmethod
     def config_deserialize(cls, config: dict[str, Any]) -> BaseModel:

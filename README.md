@@ -2,27 +2,28 @@
 
 ## Purpose
 
-This plugin for Inspect allows you to use virtual machines, running within a Proxmox instance, as sandboxes.
+This plugin for [Inspect](https://inspect.aisi.org.uk/) allows you to use virtual machines, 
+running within a [Proxmox](https://www.proxmox.com/products/proxmox-virtual-environment/overview) instance, as [sandboxes](https://inspect.aisi.org.uk/sandboxing.html).
 
 ## Installing
 
-Add this using Poetry
+Add this using [Poetry](https://python-poetry.org/)
 
 ```
-poetry add git+ssh://git@github.com/AI-Safety-Institute/inspect-vm-sandbox.git
+poetry add git+ssh://git@github.com/UKGovernmentBEIS/inspect-proxmox-sandbox.git
 ```
 
-or in uv,
+or in [uv](https://github.com/astral-sh/uv),
 
 ```
-uv add git+ssh://git@github.com/AI-Safety-Institute/inspect-vm-sandbox.git
+uv add git+ssh://git@github.com/UKGovernmentBEIS/inspect-proxmox-sandbox.git
 ```
 
 ## Requirements
 
 This plugin assumes you already have a Proxmox instance set up, and that you have admin access to it.
 
-Create a .env file with the following
+Set the following environment variables (e.g. in a [`.env`](https://dotenvx.com/docs/env-file) file)
 
 ```
 PROXMOX_HOST=[IP address or domain name of the host]
@@ -34,7 +35,7 @@ PROXMOX_NODE=[node name, usually 'proxmox']
 PROXMOX_VERIFY_TLS=[1 = verify, 0 = do not verify]
 ```
 
-Your proxmox instance must allow additional storage types from the default.
+Your Proxmox instance must allow additional storage types in `local` from the default.
 You can run this on your Proxmox node to configure them:
 
 ```bash
@@ -54,7 +55,7 @@ if there is only a single item in the tuple.
 
 Most tools use only the first sandbox, so you should list the one you want the agent to operate from first.
 
-Virtual machines must have the qemu-guest-agent installed, unless they are not sandboxes. 
+Virtual machines must have the [qemu-guest-agent](https://pve.proxmox.com/wiki/Qemu-guest-agent) installed, unless they are not sandboxes. 
 At least one VM in the configuration must be a sandbox.
 
 ```python
@@ -161,7 +162,7 @@ sandbox=SandboxEnvironmentSpec(
 
 ## Using backup files
 
-Proxmox's HTTP API will not let you upload a .zst backup file.
+Proxmox's HTTP API will not let you upload a `.zst` backup file.
 
 Instead:
 
@@ -178,14 +179,15 @@ Instead:
 Proxmox supports OVA import but not OVA export. It is possible to extract the disk images of VMs 
 from a Proxmox server in qcow2 format (instructions for this can be found online).
 
-Once you have the disk images locally, you can use the convenience script `ci_scripts/convert_ova.sh` 
+Once you have the disk images locally, you can use the convenience script `scripts/convert_ova.sh`
 to convert it into an OVA. Note, it assumes you have VirtualBox installed.
 
 ## Observing the VMs
 
-Note, if you are having problems, then setting Inspect's sandbox_cleanup=False will be helpful.
+Note, if you are having problems, then setting Inspect's `sandbox_cleanup=False` will be helpful.
 
-### AISI-specific instructions
+<details>
+<summary>AISI-specific instructions </summary>
 
 To access the Proxmox UI, at the moment you need to forward the port as follows.
 
@@ -198,6 +200,7 @@ Then you can ssh as follows
 `ssh -L "localhost:8006:$PROXMOX_HOST:$PROXMOX_PORT" my-dev-vm`
 
 Then open the page https://locahost:8006, accept the certificate warning, and log in with the username and password from the .env file
+</details>
 
 ### Logging in
 
@@ -235,6 +238,10 @@ Some resources will persist after the eval is complete:
 Environment cleanup is partially implemented. There is no way to tag all the resources
 created by a particular eval. Therefore the cleanup process for `inspect sandbox cleanup proxmox` 
 will delete all VMs tagged `inspect` and any SDN zones they were in.
+
+## Versioning
+
+The project follows [semantic versioning](https://semver.org/) and is aiming for a 1.0 release. Until then, backward-compatibility is not guaranteed.
 
 ## Feature Roadmap
 
