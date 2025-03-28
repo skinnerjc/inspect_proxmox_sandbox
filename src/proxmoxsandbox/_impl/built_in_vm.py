@@ -365,9 +365,7 @@ runcmd:
                 exec_status = await agent_commands.get_agent_exec_status(
                     vm_id=next_available_vm_id, pid=res["pid"]
                 )
-                print(f"wait_for_exec; {exec_status=}")
                 if exec_status["exited"] == 1:
-                    print(f"wait_for_exec exited = 1; {exec_status=}")
                     if exec_status["out-data"].strip() == "status: done":
                         return True
                     else:
