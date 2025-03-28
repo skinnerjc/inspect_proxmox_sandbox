@@ -260,6 +260,7 @@ The project follows [semantic versioning](https://semver.org/) and is aiming for
 ## Tech debt
 
 - Large OVA uploads use PycURL, because neither aiohttp nor httpx worked with large uploads
+- Inconsistent use of task_wrapper and tenacity
 
 ## Developing
 
