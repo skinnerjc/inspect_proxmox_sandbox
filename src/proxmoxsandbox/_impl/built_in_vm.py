@@ -12,7 +12,7 @@ from inspect_ai.util import trace_action
 from proxmoxsandbox._impl.agent_commands import AgentCommands
 from proxmoxsandbox._impl.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox._impl.qemu_commands import QemuCommands
-from proxmoxsandbox._impl.sdn_commands import SdnCommands
+from proxmoxsandbox._impl.sdn_commands import STATIC_SDN_START, SdnCommands
 from proxmoxsandbox._impl.storage_commands import StorageCommands
 from proxmoxsandbox._impl.task_wrapper import TaskWrapper
 from proxmoxsandbox.schema import (
@@ -28,10 +28,6 @@ class BuiltInVM(abc.ABC):
     logger = getLogger(__name__)
 
     TRACE_NAME = "proxmox_built_in_vm"
-
-    # A static SDN used for creating built-in VMs. It is created on demand
-    # and not torn down afterwards.
-    STATIC_SDN_START = "inspvm"
 
     UBUNTU_24_04_OVA_FILENAME = "ubuntu24.04.ova"
 
@@ -274,13 +270,13 @@ runcmd:
         existing_zones = await self.sdn_commands.list_sdn_zones()
 
         exists_already = any(
-            zone_info["zone"] and zone_info["zone"] == f"{self.STATIC_SDN_START}z"
+            zone_info["zone"] and zone_info["zone"] == f"{STATIC_SDN_START}z"
             for zone_info in existing_zones
         )
 
         if not exists_already:
             await self.sdn_commands.create_sdn(
-                proxmox_ids_start=self.STATIC_SDN_START,
+                proxmox_ids_start=STATIC_SDN_START,
                 sdn_config=SdnConfig(
                     vnet_configs=(
                         VnetConfig(
@@ -301,7 +297,7 @@ runcmd:
                     )
                 ),
             )
-        vnet_id = f"{self.STATIC_SDN_START}v0"
+        vnet_id = f"{STATIC_SDN_START}v0"
 
         with trace_action(
             self.logger,

@@ -27,6 +27,11 @@ VnetAliases: TypeAlias = List[Tuple[str, str | None]]
 
 ZONE_REGEX = "...[0-9]{3}z"
 
+# A static SDN used for creating built-in VMs. It is created on demand
+# and not torn down afterwards.
+STATIC_SDN_START = "inspvm"
+
+
 class SdnCommands(abc.ABC):
     logger = getLogger(__name__)
 
@@ -185,7 +190,10 @@ class SdnCommands(abc.ABC):
 
         # sanity check so that we don't get into trouble later
         # in inspect sandbox cleanup
-        if not re.match(ZONE_REGEX, sdn_zone_id):
+        if not (
+            re.match(ZONE_REGEX, sdn_zone_id)
+            or sdn_zone_id.startswith(STATIC_SDN_START)
+        ):
             raise ValueError("Invalid zone ID")
 
         with trace_action(self.logger, self.TRACE_NAME, f"create sdn  {sdn_zone_id=}"):
