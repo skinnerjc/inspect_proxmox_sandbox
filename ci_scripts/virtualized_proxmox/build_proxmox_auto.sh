@@ -169,7 +169,12 @@ virsh start "$VM_NEW"
 
 echo "Created VM $VM_NEW on port $PROXMOX_EXPOSED_PORT with root password $root_password"
 
-echo "PROXMOX_HOST=$(ec2-metadata  --local-ipv4 | cut -d ' ' -f 2)"
+# only full "which" supports the -s flag, hence use of "command"
+if ! command which -s ec2-metadata; then
+    echo "ec2-metadata not found; you need to figure out PROXMOX_HOST yourself"
+else
+    echo "PROXMOX_HOST=$(ec2-metadata  --local-ipv4 | cut -d ' ' -f 2)"
+fi
 echo "PROXMOX_PORT=$PROXMOX_EXPOSED_PORT"
 echo "PROXMOX_USER=root"
 echo "PROXMOX_REALM=pam"
