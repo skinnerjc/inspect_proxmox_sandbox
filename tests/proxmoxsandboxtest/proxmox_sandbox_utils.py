@@ -22,7 +22,7 @@ def setup_requests_logging() -> None:
 async def setup_sandbox(
     task_name: str, config: ProxmoxSandboxEnvironmentConfig
 ) -> Tuple[str, Dict[str, SandboxEnvironment]]:
-    await ProxmoxSandboxEnvironment.task_init(task_name=task_name, config=None)
+    await ProxmoxSandboxEnvironment.task_init(task_name=task_name, config=config)
     envs_dict = await ProxmoxSandboxEnvironment.sample_init(
         task_name=task_name,
         config=config,

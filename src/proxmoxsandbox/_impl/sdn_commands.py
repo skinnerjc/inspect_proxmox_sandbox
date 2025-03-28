@@ -1,4 +1,5 @@
 import abc
+import re
 from contextvars import ContextVar
 from ipaddress import ip_address, ip_network
 from logging import getLogger
@@ -24,6 +25,7 @@ from proxmoxsandbox.schema import (
 # The alias may be None for a given ID.
 VnetAliases: TypeAlias = List[Tuple[str, str | None]]
 
+ZONE_REGEX = "...[0-9]{3}z"
 
 class SdnCommands(abc.ABC):
     logger = getLogger(__name__)
@@ -180,6 +182,11 @@ class SdnCommands(abc.ABC):
         self.validate_ipam_dhcp_dnsnmasq(resolved_sdn_config)
 
         sdn_zone_id = f"{proxmox_ids_start}z"
+
+        # sanity check so that we don't get into trouble later
+        # in inspect sandbox cleanup
+        if not re.match(ZONE_REGEX, sdn_zone_id):
+            raise ValueError("Invalid zone ID")
 
         with trace_action(self.logger, self.TRACE_NAME, f"create sdn  {sdn_zone_id=}"):
             zone_create_json: ProxmoxJsonDataType = {

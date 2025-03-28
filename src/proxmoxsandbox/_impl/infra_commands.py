@@ -1,13 +1,17 @@
 import abc
+import re
 from logging import getLogger
-from typing import List, Set, Tuple
+from typing import Collection, Set, Tuple
 
 from inspect_ai.util import trace_action
+from rich import box, print
+from rich.prompt import Confirm
+from rich.table import Table
 
 from proxmoxsandbox._impl.async_proxmox import AsyncProxmoxAPI
 from proxmoxsandbox._impl.built_in_vm import BuiltInVM
 from proxmoxsandbox._impl.qemu_commands import QemuCommands
-from proxmoxsandbox._impl.sdn_commands import SdnCommands
+from proxmoxsandbox._impl.sdn_commands import ZONE_REGEX, SdnCommands
 from proxmoxsandbox._impl.task_wrapper import TaskWrapper
 from proxmoxsandbox.schema import (
     SdnConfigType,
@@ -75,7 +79,7 @@ class InfraCommands(abc.ABC):
         if sdn_zone_id is not None:
             await self.sdn_commands.tear_down_sdn_zone_and_vnet(sdn_zone_id=sdn_zone_id)
 
-    async def find_all_zones(self, vnet_ids: List[str]) -> Set[str]:
+    async def find_all_zones(self, vnet_ids: Collection[str]) -> Set[str]:
         return set(
             [
                 vnet["zone"]
@@ -89,7 +93,8 @@ class InfraCommands(abc.ABC):
         await self.sdn_commands.cleanup()
 
     async def cleanup_no_id(self) -> None:
-        noticed_vnets = []
+        noticed_vnets = set()
+        noticed_vms = list()
 
         for vm in await self.qemu_commands.list_vms():
             if (
@@ -104,8 +109,60 @@ class InfraCommands(abc.ABC):
                     if key.startswith("net"):
                         # 'virtio=BC:24:11:3E:C3:BA,bridge=tcc919v0'
                         bridge = existing_vm[key].split(",")[1].split("=")[1]
-                        noticed_vnets.append(bridge)
-                await self.qemu_commands.destroy_vm(vm["vmid"])
+                        noticed_vnets.add(bridge)
+                noticed_vms.append(vm)
 
         zones_to_delete = await self.find_all_zones(noticed_vnets)
+
+        # We probably already have all the SDN zones already.
+        # But in case there were no VMs in a particular SDN zone
+        # (which can happen if the task setup failed)
+        # we need to check for orphans.
+        for zone in await self.sdn_commands.list_sdn_zones():
+            if re.match(ZONE_REGEX, zone["zone"]):
+                zones_to_delete.add(zone["zone"])
+
+        if not noticed_vms and not zones_to_delete:
+            print(f"No resources to delete on {self.async_proxmox.base_url}.")
+            return
+
+        print(
+            "The following VMs and SDNs will be destroyed on "
+            + f"{self.async_proxmox.base_url}:"
+        )
+        vms_table = Table(
+            box=box.SQUARE,
+            show_lines=False,
+            title_style="bold",
+            title_justify="left",
+        )
+        vms_table.add_column("VM ID")
+        vms_table.add_column("VM Name")
+        for vm in noticed_vms:
+            vms_table.add_row(str(vm["vmid"]), vm["name"])
+        if not noticed_vms:
+            vms_table.add_row("(none)", "(none)")
+        print(vms_table)
+
+        zones_table = Table(
+            box=box.SQUARE,
+            show_lines=False,
+            title_style="bold",
+            title_justify="left",
+        )
+        zones_table.add_column("Zone ID")
+        for zone in zones_to_delete:
+            zones_table.add_row(zone)
+        if not zones_to_delete:
+            zones_table.add_row("(none)")
+        print(zones_table)
+
+        if not Confirm.ask(
+            "Are you sure you want to delete ALL the above resources?",
+        ):
+            print("Cancelled.")
+            return
+
+        for vm in noticed_vms:
+            await self.qemu_commands.destroy_vm(vm["vmid"])
         await self.sdn_commands.tear_down_sdn_zones_and_vnets(zones_to_delete)

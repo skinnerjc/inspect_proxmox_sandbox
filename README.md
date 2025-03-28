@@ -237,7 +237,10 @@ Some resources will persist after the eval is complete:
 
 Environment cleanup is partially implemented. There is no way to tag all the resources
 created by a particular eval. Therefore the cleanup process for `inspect sandbox cleanup proxmox` 
-will delete all VMs tagged `inspect` and any SDN zones they were in.
+will delete:
+
+- all VMs tagged `inspect` 
+- any SDN zones created with names matching the pattern above.
 
 ## Versioning
 
