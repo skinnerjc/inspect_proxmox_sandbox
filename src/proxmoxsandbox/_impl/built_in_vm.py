@@ -54,8 +54,56 @@ class BuiltInVM(abc.ABC):
         meta_data: str = """instance-id: proxmox\n""",  # TODO sort this
         user_data: str = """#cloud-config
 package_update: true
+# Installs packages equivalent to Inspect's default Docker image for tool compatibility
 packages:
   - qemu-guest-agent
+# from buildpack-deps Dockerfile
+  - autoconf
+  - automake
+  - bzip2
+  - default-libmysqlclient-dev
+  - dpkg-dev
+  - file
+  - g++
+  - gcc
+  - imagemagick
+  - libbz2-dev
+  - libc6-dev
+  - libcurl4-openssl-dev
+  - libdb-dev
+  - libevent-dev
+  - libffi-dev
+  - libgdbm-dev
+  - libglib2.0-dev
+  - libgmp-dev
+  - libjpeg-dev
+  - libkrb5-dev
+  - liblzma-dev
+  - libmagickcore-dev
+  - libmagickwand-dev
+  - libmaxminddb-dev
+  - libncurses-dev # changed from libncurses5-dev
+#    - libncursesw5-dev # not available (possibly related discussion https://github.com/cardano-foundation/developer-portal/issues/1364)
+  - libpng-dev
+  - libpq-dev
+  - libreadline-dev
+  - libsqlite3-dev
+  - libssl-dev
+  - libtool
+  - libwebp-dev
+  - libxml2-dev
+  - libxslt1-dev # changed from libxslt-dev
+  - libyaml-dev
+  - make
+  - patch
+  - unzip
+  - xz-utils
+  - zlib1g-dev
+# equivalent of python3.12-bookworm Dockerfile
+  - python3
+  - python3-pip
+  - python3-venv
+  - python-is-python3
 # Uncomment the ubuntu user for debugging. Password is "Password2.0"
 # users:
 #   - name: ubuntu
@@ -314,8 +362,8 @@ runcmd:
                         "name": f"inspect-{built_in}",
                         "node": self.node,
                         "cpu": "host",
-                        "memory": 2048,
-                        "cores": 2,
+                        "memory": 8192,
+                        "cores": 4,
                         "ostype": "l26",
                         "scsi0": "local-lvm:0,"
                         + f"import-from=local:import/{ova_name}/{ova_vmdk_filename},"
