@@ -1,4 +1,5 @@
 import abc
+import os
 import re
 from logging import getLogger
 from typing import Collection, Set, Tuple
@@ -157,11 +158,17 @@ class InfraCommands(abc.ABC):
             zones_table.add_row("(none)")
         print(zones_table)
 
-        if not Confirm.ask(
-            "Are you sure you want to delete ALL the above resources?",
-        ):
-            print("Cancelled.")
-            return
+        # check if a user is actually there
+        is_interactive_shell = "PS1" in os.environ
+        is_ci = "CI" in os.environ
+        is_pytest = "PYTEST_CURRENT_TEST" in os.environ
+
+        if is_interactive_shell and not is_ci and not is_pytest:
+            if not Confirm.ask(
+                "Are you sure you want to delete ALL the above resources?",
+            ):
+                print("Cancelled.")
+                return
 
         for vm in noticed_vms:
             await self.qemu_commands.destroy_vm(vm["vmid"])
