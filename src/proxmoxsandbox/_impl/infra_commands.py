@@ -1,6 +1,7 @@
 import abc
 import os
 import re
+import sys
 from logging import getLogger
 from typing import Collection, Set, Tuple
 
@@ -159,9 +160,11 @@ class InfraCommands(abc.ABC):
         print(zones_table)
 
         # check if a user is actually there
-        is_interactive_shell = "PS1" in os.environ
+        is_interactive_shell = sys.stdin.isatty()
         is_ci = "CI" in os.environ
         is_pytest = "PYTEST_CURRENT_TEST" in os.environ
+
+        self.logger.debug(f"{is_interactive_shell=}, {is_ci=}, {is_pytest=}")
 
         if is_interactive_shell and not is_ci and not is_pytest:
             if not Confirm.ask(

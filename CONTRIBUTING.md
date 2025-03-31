@@ -66,13 +66,26 @@ mypy
 
 All communication with Proxmox is via the AsyncProxmoxAPI class.
 
+![design](docs/provider.drawio.png "Design")
+
+### Lack of URL constants
+
 The URLs for each REST call tend to be inline in the part of the code making the call; 
 this is deliberate, to keep things simple and to avoid premature indirection. 
 
 
-![design](docs/provider.drawio.png "Design")
+### Limitations
 
 The design of this provider is constrained by what is offered by the 
 [Proxmox REST API](https://pve.proxmox.com/wiki/Proxmox_VE_API). 
 For example, OVA is the only supported upload format. It would be useful to be able to upload qcow2 disk images,
 but this isn't supported.
+
+### Cleanup
+
+There are two paths for cleaning up resources. The normal, "happy", path, is via `ProxmoxSandboxEnvironment`'s  `all_vm_ids` and `sdn_zone_id`
+fields. These are populated during sample setup.
+
+However, the user can press Ctrl-C, per the [Inspect docs](https://inspect.aisi.org.uk/sandboxing.html#environment-cleanup): so the 
+`QemuCommands` and `SdnCommands` use context variables to keep track of created resources, and tear down in a separate way via
+`InfraCommands.cleanup()`.

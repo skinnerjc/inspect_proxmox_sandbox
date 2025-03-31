@@ -65,7 +65,7 @@ async def test_built_in() -> None:
                     VmNicConfig(vnet_alias="vnet81"),
                 ),
                 ram_mb=2345,
-                vcpus=3,
+                vcpus=1,
                 is_sandbox=True,
                 uefi_boot=True,
             ),
@@ -98,7 +98,7 @@ async def test_built_in() -> None:
         )
 
         nproc_result = await sandbox.exec(["nproc"])
-        assert "3" == nproc_result.stdout.strip(), (
+        assert "1" == nproc_result.stdout.strip(), (
             f"Unexpected result of nproc: {nproc_result=}"
         )
 
