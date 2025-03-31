@@ -135,14 +135,7 @@ class QemuCommands(abc.ABC):
         )
 
     async def find_next_available_vm_id(self) -> int:
-        existing_vms = await self.list_vms()
-        if existing_vms:
-            next_available_vm_id = (
-                max(list(int(existing["vmid"]) for existing in existing_vms)) + 1
-            )
-        else:
-            next_available_vm_id = 100
-        return next_available_vm_id
+        return await self.async_proxmox.request("GET", "/cluster/nextid")   
 
     async def start_and_await(
         self,
