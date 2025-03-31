@@ -363,13 +363,14 @@ runcmd:
                         "node": self.node,
                         "cpu": "host",
                         "memory": 8192,
-                        "cores": 4,
+                        "cores": 2,
                         "ostype": "l26",
                         "scsi0": "local-lvm:0,"
                         + f"import-from=local:import/{ova_name}/{ova_vmdk_filename},"
                         + "format=qcow2,cache=writeback",
                         "scsihw": "virtio-scsi-single",
                         "net0": f"virtio,bridge={vnet_id}",
+                        "serial0" : "socket",
                         "start": False,
                         "agent": "enabled=1",
                     },

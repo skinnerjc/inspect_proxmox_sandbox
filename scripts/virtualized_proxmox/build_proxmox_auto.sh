@@ -168,6 +168,8 @@ virsh autostart "$VM_NEW"
 virsh start "$VM_NEW"
 
 echo "Created VM $VM_NEW on port $PROXMOX_EXPOSED_PORT with root password $root_password"
+echo "You can remove it with the following command:"
+echo "virsh destroy $VM_NEW; virsh undefine --nvram --remove-all-storage $VM_NEW"
 
 # only full "which" supports the -s flag, hence use of "command"
 if ! command which -s ec2-metadata; then
