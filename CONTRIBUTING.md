@@ -43,6 +43,8 @@ Then run:
 uv run pytest
 ```
 
+The tests require your Proxmox node to have at least 3 vCPUs available.
+
 ## Linting & Formatting
 
 [Ruff](https://docs.astral.sh/ruff/) is used for linting and formatting. To run both
