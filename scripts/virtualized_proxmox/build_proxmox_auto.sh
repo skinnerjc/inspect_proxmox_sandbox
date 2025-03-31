@@ -9,19 +9,20 @@
 # Using virt-manager, installs a template Proxmox VM using that auto-install ISO.
 # Leaves you with a script vend.sh which you can use to create up to 10 clones of the template VM when you need a Proxmox instance.
 # e.g. 
-# sudo ./vend.sh 1
+# ./vend.sh 1
 # The clones will be accessible on the host at ports 11001, 11002, etc.
 # Each clone will have a different root password, which is printed out by vend.sh.
 
-sudo apt update
-sudo apt install -y virt-manager libvirt-clients libvirt-daemon-system qemu-system-x86 virtinst guestfs-tools docker.io
-sudo usermod --append --groups libvirt $(whoami)
-sudo usermod --append --groups docker $(whoami)
-
-virsh destroy proxmox-auto
-virsh undefine --nvram --remove-all-storage proxmox-auto
+virsh destroy proxmox-auto || echo "not removing proxmox-auto; not found"
+virsh undefine --nvram --remove-all-storage proxmox-auto || true
 
 set -eu
+
+docker ps || echo 'You must have Docker installed and be in the correct docker group(s) to use this script.'
+
+sudo apt update
+sudo apt install -y virt-manager libvirt-clients libvirt-daemon-system qemu-system-x86 virtinst guestfs-tools
+sudo usermod --append --groups libvirt $(whoami)
 
 cat << 'EOFANSWERS' > answers.toml
 [global]
@@ -100,9 +101,8 @@ CMD ["cp", "/iso/proxmox-auto-from-iso.iso", "/output/"]
 
 EOFDOCKER
 
-# sudo here isn't great, but we can't guarantee the user running this script is in the correct docker group (yet)
-sudo docker build -t proxmox-auto-install .
-sudo docker run --rm -v $(pwd):/output proxmox-auto-install
+docker build -t proxmox-auto-install .
+docker run --rm -v $(pwd):/output proxmox-auto-install
 sudo cp -v proxmox-auto-from-iso.iso /var/lib/libvirt/images
 
 TOTAL_CPUS=$(nproc)
@@ -186,6 +186,7 @@ echo "PROXMOX_VERIFY_TLS=0"
 EOFVEND
 chmod +x ./vend.sh
 
-echo "Script complete. Please attach to root's tmux session virt-inst-proxmox to see the progress of the automated Proxmox installation."
-echo 'When the installation is complete, the tmux session will close automatically.'
-echo 'You can run ./vend.sh 1 to create a fresh clone of the Proxmox VM.'
+run-one-until-failure bash -c 'sleep 5; sudo tmux list-windows -t virt-inst-proxmox' > /dev/null
+
+virsh list --all
+echo 'Script complete. Run ./vend.sh 1 to create a fresh clone of the Proxmox VM.'

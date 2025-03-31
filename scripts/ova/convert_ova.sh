@@ -7,16 +7,18 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
+if [ "$2" = "uefi" ]; then
+    UEFI_MODE=1
+    echo "UEFI boot mode enabled"
+fi
+
 SOURCE_DIR=$(realpath "$1")
 OUTPUT_DIR="$SOURCE_DIR/converted_ovas"
 UEFI_MODE=0
 DOCKER_IMAGE="qcow2-ova-converter"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 
-if [ "$2" = "uefi" ]; then
-    UEFI_MODE=1
-    echo "UEFI boot mode enabled"
-fi
+docker ps || echo 'You must have Docker installed and be in the correct docker group(s) to use this script.'
 
 set -eu
 
