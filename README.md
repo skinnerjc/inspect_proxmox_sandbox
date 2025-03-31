@@ -10,13 +10,13 @@ running within a [Proxmox](https://www.proxmox.com/products/proxmox-virtual-envi
 Add this using [Poetry](https://python-poetry.org/)
 
 ```
-poetry add git+ssh://git@github.com/UKGovernmentBEIS/inspect-proxmox-sandbox.git
+poetry add git+ssh://git@github.com/UKGovernmentBEIS/inspect_proxmox_sandbox.git
 ```
 
 or in [uv](https://github.com/astral-sh/uv),
 
 ```
-uv add git+ssh://git@github.com/UKGovernmentBEIS/inspect-proxmox-sandbox.git
+uv add git+ssh://git@github.com/UKGovernmentBEIS/inspect_proxmox_sandbox.git
 ```
 
 ## Requirements

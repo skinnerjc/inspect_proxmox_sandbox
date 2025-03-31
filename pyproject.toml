@@ -1,7 +1,7 @@
 [project]
 name = "inspect-proxmox-sandbox"
 version = "0.3.0"
-description = ""
+description = "A Proxmox Sandbox Environment for Inspect"
 readme = "README.md"
 authors = [
     {name = "UK AI Security Institute"}
