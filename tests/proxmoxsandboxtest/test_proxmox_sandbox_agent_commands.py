@@ -1,4 +1,6 @@
 import hashlib
+import random
+import string
 import subprocess
 from pathlib import Path
 from typing import List
@@ -64,7 +66,7 @@ async def test_write_and_read_15mb(
     a 16 MiB hard limit — at 15MB we are close to that boundary.
     """
     size = 15 * 1024 * 1024  # 15 MiB
-    data = b"A" * size
+    data = bytes(random.choices(string.ascii_letters.encode(), k=size))
     target_path = "/tmp/large_test_file.bin"
 
     await proxmox_sandbox_environment.write_file(target_path, data)
