@@ -202,22 +202,27 @@ Requires at least 3 vCPUs available on the Proxmox node.
 
 ### Session 2 (2026-03-03, continued)
 
-**Broken pipe reproduced.**
+**Broken pipe reproduced — confirmed.**
 
-- `test_write_and_read_15mb` (synthetic `b"A" * 15MB`) **passed** — because highly
-  compressible data transits the QEMU agent pipe as almost nothing.
-- `test_write_and_read_inspect_sandbox_tools` (real ~14.8 MiB ELF binary) **failed**
-  with `HTTP 597 Broken pipe`.
+Iterations on the repro test:
+- `b"A" * 15MB` — **passed** (compresses to near-zero through the QEMU agent pipe)
+- `random.choices(ascii_letters, k=15MB)` — **passed** (52-char alphabet still
+  compresses enough)
+- `os.urandom(15MB)` — **FAILED** with `HTTP 597 Broken pipe` ✓
+- Real `inspect-sandbox-tools-amd64-v7` binary (14.8 MiB ELF) — **FAILED** ✓
+
+The key factor is **compressibility**, not just size. The QEMU guest agent pipe
+breaks when it has to transit truly incompressible data at ~15 MiB.
+
+Final repro test: `test_write_and_read_15mb` using `os.urandom(15 * 1024 * 1024)` —
+self-contained, no external dependencies, fails deterministically.
 
 **Root cause confirmed:**
 
 The Proxmox QEMU guest agent protocol has an internal pipe/buffer limit. When the
-file content is incompressible (real binary data), the full ~14.8 MiB has to transit
-the agent pipe, which breaks it. The error surfaces as a non-standard HTTP 597 status
-code from the Proxmox API.
-
-The failure point is `async_proxmox.py:175` — `response.raise_for_status()` on the
-streaming GET to `/nodes/{node}/qemu/{vmid}/agent/file-read`.
+file content is incompressible, the full ~15 MiB has to transit the agent pipe,
+which breaks it. The error surfaces as a non-standard HTTP 597 status code from
+the Proxmox API at `async_proxmox.py:175`.
 
 **Fix approach:**
 
