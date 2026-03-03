@@ -80,7 +80,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN mkdir -p /iso
 
-RUN wget -q -O /iso/proxmox.iso https://enterprise.proxmox.com/iso/proxmox-ve_8.3-1.iso
+RUN wget -q -O /iso/proxmox.iso https://enterprise.proxmox.com/iso/proxmox-ve_8.4-1.iso
 
 RUN echo "deb http://download.proxmox.com/debian/pve/ bookworm pve-no-subscription" > /etc/apt/sources.list.d/pve.list
 RUN wget -O- http://download.proxmox.com/debian/proxmox-release-bookworm.gpg | apt-key add -
