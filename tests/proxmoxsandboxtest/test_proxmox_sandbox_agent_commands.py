@@ -3,6 +3,7 @@ import subprocess
 from pathlib import Path
 from typing import List
 
+import httpx
 from inspect_ai.util._sandbox.self_check import self_check
 
 from proxmoxsandbox._proxmox_sandbox_environment import ProxmoxSandboxEnvironment
@@ -71,6 +72,35 @@ async def test_write_and_read_15mb(
     result = await proxmox_sandbox_environment.read_file(target_path, text=False)
 
     assert len(result) == size, f"Expected {size} bytes, got {len(result)}"
+    assert result == data
+
+
+INSPECT_SANDBOX_TOOLS_URL = (
+    "https://inspect-sandbox-tools.s3.us-east-2.amazonaws.com/inspect-sandbox-tools-amd64-v7"
+)
+
+
+async def test_write_and_read_inspect_sandbox_tools(
+    proxmox_sandbox_environment: ProxmoxSandboxEnvironment,
+) -> None:
+    """Repro for broken pipe using the exact binary that triggers the issue.
+
+    Downloads inspect-sandbox-tools-amd64-v7 (~14.8 MiB) — the real binary
+    from inspect_swe that hits the broken pipe on Proxmox — writes it via
+    write_file, then reads it back via read_file.
+    """
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.get(INSPECT_SANDBOX_TOOLS_URL)
+        response.raise_for_status()
+        data = response.content
+
+    target_path = "/tmp/inspect-sandbox-tools-amd64-v7"
+
+    await proxmox_sandbox_environment.write_file(target_path, data)
+
+    result = await proxmox_sandbox_environment.read_file(target_path, text=False)
+
+    assert len(result) == len(data), f"Expected {len(data)} bytes, got {len(result)}"
     assert result == data
 
 
