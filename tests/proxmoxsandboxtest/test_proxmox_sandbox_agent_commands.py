@@ -53,6 +53,27 @@ async def test_write_file_large(
     )
 
 
+async def test_write_and_read_15mb(
+    proxmox_sandbox_environment: ProxmoxSandboxEnvironment,
+) -> None:
+    """Repro for broken pipe on Proxmox when reading back a large file.
+
+    Writes ~15MB of data via write_file, then reads it back via read_file.
+    The read_file path streams through the Proxmox QEMU agent API which has
+    a 16 MiB hard limit — at 15MB we are close to that boundary.
+    """
+    size = 15 * 1024 * 1024  # 15 MiB
+    data = b"A" * size
+    target_path = "/tmp/large_test_file.bin"
+
+    await proxmox_sandbox_environment.write_file(target_path, data)
+
+    result = await proxmox_sandbox_environment.read_file(target_path, text=False)
+
+    assert len(result) == size, f"Expected {size} bytes, got {len(result)}"
+    assert result == data
+
+
 async def test_self_check(
     proxmox_sandbox_environment: ProxmoxSandboxEnvironment,
 ) -> None:
