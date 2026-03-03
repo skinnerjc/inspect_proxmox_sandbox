@@ -192,26 +192,43 @@ Requires at least 3 vCPUs available on the Proxmox node.
   silently — no output during install.
 
 **Where we left off:**
-- `build_proxmox_auto.sh` is running in `tmux` session `proxmox` on `rangetloaii-1`.
-- Once it finishes it will print `virsh list --all` and a message about `vend.sh`.
-- You can check on the install: `sudo tmux list-sessions` to see the
-  `virt-inst-proxmox` session, or `sudo tmux attach -t virt-inst-proxmox` to watch
-  the Proxmox installer console (detach with `Ctrl+B, D`).
-
-**Next steps when resuming:**
-1. Check if `build_proxmox_auto.sh` completed: `tmux attach -t proxmox`
-2. If complete, vend a clone: `./vend.sh 1` (from the repo directory)
-3. Create `.env` from `vend.sh` output
-4. `uv sync`
-5. `set -a; source .env; set +a`
-6. Run the repro test:
-   ```bash
-   uv run pytest tests/proxmoxsandboxtest/test_proxmox_sandbox_agent_commands.py::test_write_and_read_15mb -v
-   ```
+- Both repro tests are confirmed working on `rangetloaii-1`.
+- The broken pipe is reproduced. Root cause identified (see below).
+- Next step is to implement a fix in `read_file`.
 
 **Repo:** `https://github.com/skinnerjc/inspect_proxmox_sandbox`
 **Branch:** `joe/broken-pipe-repro`
 **Metal instance:** `rangetloaii-1`
+
+### Session 2 (2026-03-03, continued)
+
+**Broken pipe reproduced.**
+
+- `test_write_and_read_15mb` (synthetic `b"A" * 15MB`) **passed** — because highly
+  compressible data transits the QEMU agent pipe as almost nothing.
+- `test_write_and_read_inspect_sandbox_tools` (real ~14.8 MiB ELF binary) **failed**
+  with `HTTP 597 Broken pipe`.
+
+**Root cause confirmed:**
+
+The Proxmox QEMU guest agent protocol has an internal pipe/buffer limit. When the
+file content is incompressible (real binary data), the full ~14.8 MiB has to transit
+the agent pipe, which breaks it. The error surfaces as a non-standard HTTP 597 status
+code from the Proxmox API.
+
+The failure point is `async_proxmox.py:175` — `response.raise_for_status()` on the
+streaming GET to `/nodes/{node}/qemu/{vmid}/agent/file-read`.
+
+**Fix approach:**
+
+Mirror what `write_file` already does for large files: split the read into chunks
+on the VM side (using `exec` + `split`), read each chunk via the agent API, then
+recombine client-side. The chunk size should be small enough that each individual
+read stays well under the agent pipe limit.
+
+**Next step:** Implement chunked `read_file` in
+`src/proxmoxsandbox/_proxmox_sandbox_environment.py` and/or
+`src/proxmoxsandbox/_impl/agent_commands.py`.
 
 ## Decisions Made
 
