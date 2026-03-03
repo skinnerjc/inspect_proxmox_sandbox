@@ -157,6 +157,62 @@ Requires at least 3 vCPUs available on the Proxmox node.
   The code handles this automatically, but if your Proxmox VM was restarted you
   may need to re-check the credentials.
 
+## Progress Log
+
+### Session 1 (2026-03-03)
+
+**Codebase investigation:**
+- Explored the full repo structure, understood how `write_file` and `read_file`
+  work end-to-end through the Proxmox QEMU guest agent API.
+- Identified that the existing `test_write_file_large` writes ~20MB but only
+  verifies via `exec(["md5sum", ...])` — it never calls `read_file`, so it
+  doesn't exercise the broken pipe code path.
+- Identified the `read_file` streaming path in `async_proxmox.py` as the likely
+  source of the broken pipe (streams via httpx in 8KB chunks, 16 MiB Proxmox
+  API hard limit).
+
+**Test written:**
+- Added `test_write_and_read_15mb` to
+  `tests/proxmoxsandboxtest/test_proxmox_sandbox_agent_commands.py`.
+- Uses the `proxmox_sandbox_environment` fixture from `conftest.py` which handles
+  all VM provisioning (built-in Ubuntu 24.04 template, SDN, clone, boot, cleanup).
+
+**Infrastructure setup on metal instance (`rangetloaii-1`):**
+- The instance already had libvirt and a `proxmox-auto` VM from a previous setup,
+  but the old `vend.sh` (in `/home/ubuntu/`) was a customized version that depended
+  on a missing `capacity.sh` file.
+- Decided to start fresh: destroyed the old `proxmox-auto` VM and re-ran
+  `build_proxmox_auto.sh` from this repo to get the standard `vend.sh`.
+- **Fix required:** The Proxmox ISO URL in `build_proxmox_auto.sh` was pointing at
+  `proxmox-ve_8.3-1.iso` which has been removed from Proxmox's servers. Updated to
+  `proxmox-ve_8.4-1.iso` (committed on this branch).
+- `build_proxmox_auto.sh` is currently running in tmux on the metal instance.
+  The Docker build + ISO creation completed successfully. The `virt-install` step
+  is running (installs Proxmox into a libvirt VM, takes ~10-15 min). It runs
+  silently — no output during install.
+
+**Where we left off:**
+- `build_proxmox_auto.sh` is running in `tmux` session `proxmox` on `rangetloaii-1`.
+- Once it finishes it will print `virsh list --all` and a message about `vend.sh`.
+- You can check on the install: `sudo tmux list-sessions` to see the
+  `virt-inst-proxmox` session, or `sudo tmux attach -t virt-inst-proxmox` to watch
+  the Proxmox installer console (detach with `Ctrl+B, D`).
+
+**Next steps when resuming:**
+1. Check if `build_proxmox_auto.sh` completed: `tmux attach -t proxmox`
+2. If complete, vend a clone: `./vend.sh 1` (from the repo directory)
+3. Create `.env` from `vend.sh` output
+4. `uv sync`
+5. `set -a; source .env; set +a`
+6. Run the repro test:
+   ```bash
+   uv run pytest tests/proxmoxsandboxtest/test_proxmox_sandbox_agent_commands.py::test_write_and_read_15mb -v
+   ```
+
+**Repo:** `https://github.com/skinnerjc/inspect_proxmox_sandbox`
+**Branch:** `joe/broken-pipe-repro`
+**Metal instance:** `rangetloaii-1`
+
 ## Decisions Made
 
 - Use the simplest possible setup: built-in Ubuntu 24.04 VM (no external qcow2/S3).
@@ -165,3 +221,4 @@ Requires at least 3 vCPUs available on the Proxmox node.
   to make the test self-contained and the size easily adjustable.
 - Test is placed alongside the existing agent command tests since it exercises
   the same `write_file`/`read_file` code path.
+- Proxmox ISO updated from 8.3-1 to 8.4-1 (old version removed from servers).
